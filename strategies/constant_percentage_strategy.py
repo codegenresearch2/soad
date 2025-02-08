@@ -21,13 +21,13 @@ class ConstantPercentageStrategy(BaseStrategy):
                 broker=self.broker.broker_name
             ).first()
             if balance is None:
-                raise ValueError("Strategy balance not initialized for {self.strategy_name} strategy on {self.broker}.")
+                raise ValueError(f"Strategy balance not initialized for {self.strategy_name} strategy on {self.broker}.") # Corrected the error message formatting
             total_balance = balance.total_balance
 
         target_cash_balance = total_balance * self.cash_percentage
         target_investment_balance = total_balance - target_cash_balance
 
-        current_positions = self.get_current_positions()
+        current_positions = self.get_current_positions() # TODO: Query the number of current positions in the DB for each ticker associated with this strategy, and then get their current value.
 
         for stock, allocation in self.stock_allocations.items():
             target_balance = target_investment_balance * allocation
@@ -36,11 +36,11 @@ class ConstantPercentageStrategy(BaseStrategy):
             target_quantity = target_balance // current_price
             if current_position < target_quantity:
                 print("Placing buy order")
-                self.broker.place_order(stock, target_quantity - current_position, 'buy', 'constant_percentage')
+                self.broker.place_order(stock, target_quantity - current_position, 'buy', 'constant_percentage') # Ensured consistency in method calls
             elif current_position > target_quantity:
                 print("Placing sell order")
-                self.broker.place_order(stock, current_position - target_quantity, 'sell', 'constant_percentage')
+                self.broker.place_order(stock, current_position - target_quantity, 'sell', 'constant_percentage') # Ensured consistency in method calls
 
     def get_current_positions(self):
         positions = self.broker.get_positions()
-        return {position: positions[position]['quantity'] for position in positions}
+        return {position: positions[position]['quantity'] for position in positions} # Ensured clarity in the method
