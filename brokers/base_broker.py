@@ -69,8 +69,8 @@ class BaseBroker(ABC):
         return order_status
 
     def cancel_order(self, order_id):
+        cancel_status = self._cancel_order(order_id)
         with self.db_manager.Session() as session:
-            cancel_status = self._cancel_order(order_id)
             trade = session.query(Trade).filter_by(id=order_id).first()
             if trade:
                 self.update_trade(session, trade.id, cancel_status)
@@ -88,7 +88,7 @@ class BaseBroker(ABC):
         if executed_price is None:
             executed_price = trade.price
         profit_loss = self.db_manager.calculate_profit_loss(trade)
-        success = 'success' if profit_loss > 0 else 'failure'
+        success = 'success' if profit_loss > 0 else 'failure'  # Use double quotes for strings
 
         trade.executed_price = executed_price
         trade.success = success
