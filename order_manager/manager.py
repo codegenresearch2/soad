@@ -68,14 +68,8 @@ class OrderManager:
                     await broker.cancel_order(order.broker_id)
                     await self.db_manager.update_trade_status(order.id, 'cancelled')
                     mid_price = await broker.get_mid_price(order.symbol)
-                    await broker.place_order(
-                        symbol=order.symbol,
-                        quantity=order.quantity,
-                        side=order.side,
-                        strategy=order.strategy,
-                        price=round(mid_price, 2),
-                        order_type='limit',
-                        execution_style=order.execution_style
+                    await self.place_order(
+                        order.symbol, order.quantity, order.side, order.strategy_name, round(mid_price, 2), order_type='limit', execution_style=order.execution_style
                     )
                 except Exception as e:
                     logger.error(f'Error cancelling pegged order {order.id}', extra={'error': str(e)})
