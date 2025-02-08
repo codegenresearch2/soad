@@ -53,14 +53,3 @@ class Position(Base):
     last_updated = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     balance = relationship('Balance', back_populates='positions')
-
-
-def drop_then_init_db(engine):
-    # Drop existing tables
-    Base.metadata.drop_all(engine)
-    # Create new tables
-    Base.metadata.create_all(engine)
-
-
-def init_db(engine):
-    Base.metadata.create_all(engine)  # Create new tables
