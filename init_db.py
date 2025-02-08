@@ -21,8 +21,8 @@ drop_then_init_db(engine)
 brokers = ['E*TRADE', 'Tradier', 'Tastytrade']
 strategies = ['SMA', 'EMA', 'RSI', 'Bollinger Bands', 'MACD', 'VWAP', 'Ichimoku']
 
-# Generate unique hourly timestamps for the past 30 days
-start_date = datetime.utcnow() - timedelta(days=30)
+# Generate unique hourly timestamps for the past 5 days
+start_date = datetime.utcnow() - timedelta(days=5)
 end_date = datetime.utcnow()
 timestamps = [start_date + timedelta(hours=i) for i in range((end_date - start_date).days * 24)]
 
@@ -30,7 +30,7 @@ timestamps = [start_date + timedelta(hours=i) for i in range((end_date - start_d
 num_trades_per_hour = 1  # Number of trades per hour
 fake_trades = []
 
-print("Generating fake trade data...")
+print("Generating fake trade data...")  # Print statement for consistency
 for timestamp in timestamps:
     for _ in range(num_trades_per_hour):
         fake_trades.append(Trade(
@@ -45,17 +45,17 @@ for timestamp in timestamps:
             strategy=random.choice(strategies),
             profit_loss=random.uniform(-100, 100),
             success=random.choice(['yes', 'no'])
-        ))
-print("Fake trade data generation completed.")
+        ))  
+print("Fake trade data generation completed.")  # Print statement for consistency
 
 # Insert fake trades into the database
-print("Inserting fake trades into the database...")
+print("Inserting fake trades into the database...")  # Print statement for consistency
 session.add_all(fake_trades)
 session.commit()
-print("Fake trades inserted into the database.")
+print("Fake trades inserted into the database.")  # Print statement for consistency
 
 # Generate and insert fake balance data and positions
-print("Generating and inserting fake balance data and positions...")
+print("Generating and inserting fake balance data and positions...")  # Print statement for consistency
 for broker in brokers:
     for strategy in strategies:
         initial_balance = random.uniform(5000, 20000)
@@ -69,9 +69,9 @@ for broker in brokers:
                 timestamp=timestamp
             )
             session.add(balance_record)
-            session.commit()  # Commit each balance record individually
+session.commit()  # Commit each balance record individually
             initial_balance = total_balance  # Update the initial balance for the next timestamp
-            print(f"Inserted balance record for {broker}, {strategy} at {timestamp}. Total balance: {total_balance}")
+            print(f"Inserted balance record for {broker}, {strategy} at {timestamp}. Total balance: {total_balance}")  # Print statement for consistency
 
             # Generate and insert fake positions for each balance record
             for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
@@ -84,10 +84,10 @@ for broker in brokers:
                     latest_price=latest_price
                 )
                 session.add(position_record)
-                session.commit()  # Commit each position record individually
-                print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {quantity}, Latest price: {latest_price}")
+session.commit()  # Commit each position record individually
+                print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {quantity}, Latest price: {latest_price}")  # Print statement for consistency
 
-print("Fake balance data and positions generation and insertion completed.")
+print("Fake balance data and positions generation and insertion completed.")  # Print statement for consistency
 
 # Generate fake account data
 fake_accounts = [
@@ -97,10 +97,10 @@ fake_accounts = [
 ]
 
 # Insert fake account data into the database
-print("Inserting fake account data into the database...")
+print("Inserting fake account data into the database...")  # Print statement for consistency
 session.add_all(fake_accounts)
 session.commit()
-print("Fake account data inserted into the database.")
+print("Fake account data inserted into the database.")  # Print statement for consistency
 
 @app.route('/positions', methods=['GET'])
 def get_positions():
