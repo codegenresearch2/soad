@@ -65,6 +65,10 @@ class BaseBroker(ABC):
     def get_positions(self):
         pass
 
+    @abstractmethod
+    def get_cost_basis(self, symbol):
+        pass
+
     async def get_account_info(self):
         '''Get the account information'''        
         logger.info('Getting account information')
@@ -159,7 +163,7 @@ class BaseBroker(ABC):
 
                 # Log after committing changes
                 logger.info('Position updated', extra={'position': position})
-      
+       
         except Exception as e:
             logger.error('Failed to update positions', extra={'error': str(e)})
 
@@ -313,11 +317,14 @@ class BaseBroker(ABC):
                 response = self._place_order(symbol, quantity, order_type, price)
             logger.info('Order placed successfully', extra={'response': response})
 
+            if not price:
+                price = response.get('filled_price', price)
+
             trade = Trade(
                 symbol=symbol,
                 quantity=quantity,
-                price=response.get('filled_price', price),
-                executed_price=response.get('filled_price', price),
+                price=price,
+                executed_price=price,
                 order_type=order_type,
                 status='filled',
                 timestamp=datetime.now(),
@@ -430,3 +437,24 @@ class BaseBroker(ABC):
             logger.info('Trade updated', extra={'trade': trade})
         except Exception as e:
             logger.error('Failed to update trade', extra={'error': str(e)})
+
+    def get_cost_basis(self, symbol):
+        '''Get the cost basis for a specific position'''        
+        logger.info('Getting cost basis for symbol', extra={'symbol': symbol})
+        try:
+            async with self.Session() as session:
+                result = await session.execute(
+                    select(Position).filter_by(
+                        symbol=symbol, broker=self.broker_name, strategy=self.strategy_name
+                    )
+                )
+                position = result.scalars().first()
+                if position:
+                    logger.info('Cost basis retrieved', extra={'cost_basis': position.cost_basis})
+                    return position.cost_basis
+                else:
+                    logger.error('Position not found', extra={'symbol': symbol})
+                    return None
+        except Exception as e:
+            logger.error('Failed to get cost basis', extra={'error': str(e)})
+            return None
