@@ -2,9 +2,7 @@ from flask import Flask, jsonify, render_template, request, abort
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo, Balance, Position
-import os
 from flask_cors import CORS
-import logging
 
 app = Flask('TradingAPI', template_folder='ui/templates')
 CORS(app, origins=['http://example.com'], supports_credentials=True)
@@ -57,9 +55,8 @@ def historic_balance_per_strategy():
                 'total_balance': total_balance
             })
         return jsonify({'historic_balance_per_strategy': historical_balances_serializable})
-    except Exception as e:
-        app.logger.error(f'Error fetching historic balance per strategy: {e}')
-        return jsonify({'error': 'Failed to fetch historic balance per strategy'}), 500
+    finally:
+        app.session.close()
 
 @app.route('/account_values')
 def account_values():
