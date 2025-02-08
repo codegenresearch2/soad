@@ -68,63 +68,9 @@ class OrderManager:
                     await broker.cancel_order(order.broker_id)
                     await self.db_manager.update_trade_status(order.id, 'cancelled')
                     mid_price = await broker.get_mid_price(order.symbol)
-                    await self.place_order(order.symbol, order.quantity, order.side, order.strategy, round(mid_price, 2), order_type='limit', execution_style=order.execution_style)
+                    await broker.place_order(order.symbol, order.quantity, order.side, round(mid_price, 2), order_type='limit', execution_style=order.execution_style)
                 except Exception as e:
                     logger.error(f'Error cancelling pegged order {order.id}', extra={'error': str(e)})
-
-    async def place_order(self, symbol, quantity, side, strategy, price, order_type='limit', execution_style=''):
-        logger.info(
-            'Placing order',
-            extra={
-                'symbol': symbol,
-                'quantity': quantity,
-                'side': side,
-                'strategy': strategy,
-                'price': price,
-                'order_type': order_type,
-                'execution_style': execution_style
-            }
-        )
-        try:
-            response = await self.brokers['dummy_broker'].place_order(symbol, quantity, side, price, order_type)
-            broker_id = response.get('order_id', None)
-            logger.info(
-                'Order placed successfully',
-                extra={
-                    'response': response,
-                    'symbol': symbol,
-                    'quantity': quantity,
-                    'side': side,
-                    'broker_id': broker_id,
-                    'strategy': strategy,
-                    'price': price,
-                    'order_type': order_type,
-                    'execution_style': execution_style
-                }
-            )
-            trade = Trade(
-                symbol=symbol,
-                quantity=quantity,
-                price=price,
-                executed_price=price,
-                side=side,
-                status='open',
-                broker_id=broker_id,
-                timestamp=datetime.now(),
-                broker=order.broker,
-                strategy=strategy,
-                profit_loss=0,
-                success='yes',
-                execution_style=execution_style
-            )
-            async with self.db_manager.Session() as session:
-                session.add(trade)
-                await session.flush()
-                await session.commit()
-            return response
-        except Exception as e:
-            logger.error('Failed to place order', extra={'error': str(e)})
-            return None
 
     async def run(self):
         logger.info('Running OrderManager')
