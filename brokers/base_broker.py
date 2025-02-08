@@ -52,9 +52,17 @@ class BaseBroker(ABC):
     def has_bought_today(self, symbol):
         today = datetime.now().date()
         with self.Session() as session:
-            trades = session.query(Trade).filter(                and_(                    Trade.symbol == symbol,                    Trade.broker == self.broker_name,                    Trade.order_type == 'buy',                    Trade.timestamp >= today                )            ).all()            return len(trades) > 0
+            trades = session.query(Trade).filter(
+                and_(
+                    Trade.symbol == symbol,
+                    Trade.broker == self.broker_name,
+                    Trade.order_type == 'buy',
+                    Trade.timestamp >= today
+                )
+            ).all()
+            return len(trades) > 0
 
-    def update_positions(self, session, trade):
+    def update_positions(self, session, trade, order_type):
         position = session.query(Position).filter_by(symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy).first()
 
         if trade.order_type == 'buy':
@@ -121,7 +129,7 @@ class BaseBroker(ABC):
             session.commit()
 
             # Update positions
-            self.update_positions(session, trade)
+            self.update_positions(session, trade, order_type)
 
         return response
 
