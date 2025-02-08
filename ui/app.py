@@ -33,9 +33,10 @@ def trades_per_strategy():
     trades_count_serializable = [{'strategy': strategy, 'broker': broker, 'count': count} for strategy, broker, count in trades_count]
     return jsonify({'trades_per_strategy': trades_count_serializable})
 
-@app.route('/historic_balance_per_strategy')
+@app.route('/historic_balance_per_strategy', methods=['GET'])
 def historic_balance_per_strategy():
-    with Session() as session:
+    session = Session()
+    try:
         historical_balances = session.query(
             Balance.strategy,
             Balance.broker,
@@ -55,6 +56,8 @@ def historic_balance_per_strategy():
                 'total_balance': total_balance
             })
         return jsonify({'historic_balance_per_strategy': historical_balances_serializable})
+    finally:
+        session.close()
 
 @app.route('/account_values')
 def account_values():
