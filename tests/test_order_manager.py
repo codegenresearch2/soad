@@ -10,13 +10,13 @@ from order_manager.manager import OrderManager, MARK_ORDER_STALE_AFTER, PEGGED_O
 PEGGED_ORDER_CANCEL_AFTER = 15  # 15 seconds
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 def mock_db_manager():
     """Mock the DBManager."""
     return AsyncMock()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 def mock_broker():
     """Mock a broker."
     broker = AsyncMock()
@@ -25,7 +25,7 @@ def mock_broker():
     return broker
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 def order_manager(mock_db_manager, mock_broker):
     """Create an instance of OrderManager with mocked dependencies."
     engine = MagicMock()
