@@ -49,7 +49,6 @@ def parse_config(config_path):
     return config
 
 # Create a single database engine for all brokers
-# This engine will be shared among all brokers
 # The database URL is fetched from the config, defaulting to SQLite if not provided
 
 def initialize_brokers(config):
