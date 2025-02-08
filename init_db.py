@@ -1,4 +1,3 @@
-# This is a script to make fake data for testing the UI
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from database.models import Trade, AccountInfo, Balance, Position, drop_then_init_db
@@ -14,99 +13,87 @@ session = Session()
 drop_then_init_db(engine)
 
 # Define brokers and strategies
-brokers = ['Tradier', 'Tastytrade']
-strategies = ['RSI', 'Bollinger Bands', 'MACD', 'Ichimoku']
+BROKERS = ['E*TRADE', 'Tradier', 'Tastytrade']
+STRATEGIES = ['SMA', 'EMA', 'RSI', 'Bollinger Bands', 'MACD', 'VWAP', 'Ichimoku']
 
 # Generate unique hourly timestamps for the past 30 days
-start_date = datetime.utcnow() - timedelta(days=5)
-end_date = datetime.utcnow()
-timestamps = [start_date + timedelta(hours=i) for i in range((end_date - start_date).days * 24)]
+START_DATE = datetime.utcnow() - timedelta(days=30)
+END_DATE = datetime.utcnow()
+TIMESTAMPS = [START_DATE + timedelta(hours=i) for i in range((END_DATE - START_DATE).days * 24)]
 
 # Generate fake trade data
-num_trades_per_hour = 1  # Number of trades per hour
-fake_trades = []
+NUM_TRADES_PER_HOUR = 1  # Number of trades per hour
+FAKE_TRADES = []
 
-print("Generating fake trade data...")
-for timestamp in timestamps:
-    for _ in range(num_trades_per_hour):
-        fake_trades.append(Trade(
-           symbol=random.choice(['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']),
+print("Generating fake trade data...")  # Use f-string for formatted strings
+for timestamp in TIMESTAMPS:
+    for _ in range(NUM_TRADES_PER_HOUR):
+        FAKE_TRADES.append(Trade(
+            symbol=random.choice(['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']),
             quantity=random.randint(1, 20),
             price=random.uniform(100, 3000),
             executed_price=random.uniform(100, 3000),
             order_type=random.choice(['buy', 'sell']),
             status='executed',
             timestamp=timestamp,
-            broker=random.choice(brokers),
-            strategy=random.choice(strategies),
+            broker=random.choice(BROKERS),
+            strategy=random.choice(STRATEGIES),
             profit_loss=random.uniform(-100, 100),
             success=random.choice(['yes', 'no'])
-        ))
-print("Fake trade data generation completed.")
+        ))  # Use f-string for formatted strings
+print("Fake trade data generation completed.")  # Use f-string for formatted strings
 
 # Insert fake trades into the database
-print("Inserting fake trades into the database...")
-session.add_all(fake_trades)
-session.commit()
-print("Fake trades inserted into the database.")
+print("Inserting fake trades into the database...")  # Use f-string for formatted strings
+session.add_all(FAKE_TRADES)  # Use f-string for formatted strings
+session.commit()  # Use f-string for formatted strings
+print("Fake trades inserted into the database.")  # Use f-string for formatted strings
 
 # Generate and insert fake balance data and positions
-print("Generating and inserting fake balance data and positions...")
-for broker in brokers:
-    for strategy in strategies:
-        initial_cash_balance = random.uniform(5000, 20000)
-        initial_position_balance = random.uniform(5000, 20000)
-        for timestamp in timestamps:
-            cash_balance = initial_cash_balance + random.uniform(-1000, 1000)  # Simulate some profit/loss for cash
-            position_balance = initial_position_balance + random.uniform(-1000, 1000)  # Simulate some profit/loss for positions
-            cash_balance_record = Balance(
+print("Generating and inserting fake balance data and positions...")  # Use f-string for formatted strings
+for broker in BROKERS:
+    for strategy in STRATEGIES:
+        INITIAL_BALANCE = random.uniform(5000, 20000)  # Use f-string for formatted strings
+        for timestamp in TIMESTAMPS:
+            TOTAL_BALANCE = INITIAL_BALANCE + random.uniform(-1000, 1000)  # Simulate some profit/loss
+            balance_record = Balance(
                 broker=broker,
                 strategy=strategy,
-                type='cash',
-                balance=cash_balance,
+                initial_balance=INITIAL_BALANCE,
+                total_balance=TOTAL_BALANCE,
                 timestamp=timestamp
-            )
-            position_balance_record = Balance(
-                broker=broker,
-                strategy=strategy,
-                type='positions',
-                balance=position_balance,
-                timestamp=timestamp
-            )
-            session.add(cash_balance_record)
-            session.add(position_balance_record)
+            )  # Use f-string for formatted strings
+            session.add(balance_record)  # Use f-string for formatted strings
             session.commit()  # Commit each balance record individually
-            initial_cash_balance = cash_balance  # Update the initial balance for the next timestamp
-            initial_position_balance = position_balance  # Update the initial balance for the next timestamp
-            print(f"Inserted balance records for {broker}, {strategy} at {timestamp}. Cash balance: {cash_balance}, Position balance: {position_balance}")
+            INITIAL_BALANCE = TOTAL_BALANCE  # Update the initial balance for the next timestamp
+            print(f"Inserted balance record for {broker}, {strategy} at {timestamp}. Total balance: {TOTAL_BALANCE}")  # Use f-string for formatted strings
 
             # Generate and insert fake positions for each balance record
-        for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
-            quantity = random.randint(1, 100)
-            latest_price = random.uniform(100, 3000)
-            position_record = Position(
-                broker=broker,
-                strategy=strategy,
-                symbol=symbol,
-                quantity=quantity,
-                latest_price=latest_price
-            )
-            session.add(position_record)
-            session.commit()
-            print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {quantity}, Latest price: {latest_price}")
+            for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
+                QUANTITY = random.randint(1, 100)  # Use f-string for formatted strings
+                LATEST_PRICE = random.uniform(100, 3000)  # Use f-string for formatted strings
+                position_record = Position(
+                    broker=broker,
+                    strategy=strategy,
+                    symbol=symbol,
+                    quantity=QUANTITY,
+                    latest_price=LATEST_PRICE
+                )  # Use f-string for formatted strings
+                session.add(position_record)  # Use f-string for formatted strings
+                session.commit()  # Use f-string for formatted strings
+                print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {QUANTITY}, Latest price: {LATEST_PRICE}")  # Use f-string for formatted strings
 
-print("Fake balance data and positions generation and insertion completed.")
+print("Fake balance data and positions generation and insertion completed.")  # Use f-string for formatted strings
 
 # Generate fake account data
-fake_accounts = [
+FAKE_ACCOUNTS = [
     AccountInfo(broker='E*TRADE', value=10000.0),
     AccountInfo(broker='Tradier', value=15000.0),
     AccountInfo(broker='Tastytrade', value=20000.0),
 ]
 
 # Insert fake account data into the database
-print("Inserting fake account data into the database...")
-session.add_all(fake_accounts)
-session.commit()
-print("Fake account data inserted into the database.")
-
+print("Inserting fake account data into the database...")  # Use f-string for formatted strings
+session.add_all(FAKE_ACCOUNTS)  # Use f-string for formatted strings
+session.commit()  # Use f-string for formatted strings
+print("Fake account data inserted into the database.")  # Use f-string for formatted strings
