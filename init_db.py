@@ -21,8 +21,8 @@ drop_then_init_db(engine)
 brokers = ['E*TRADE', 'Tradier', 'Tastytrade']
 strategies = ['SMA', 'EMA', 'RSI', 'Bollinger Bands', 'MACD', 'VWAP', 'Ichimoku']
 
-# Generate unique hourly timestamps for the past 5 days
-start_date = datetime.utcnow() - timedelta(days=5)
+# Generate unique hourly timestamps for the past 30 days
+start_date = datetime.utcnow() - timedelta(days=30)
 end_date = datetime.utcnow()
 timestamps = [start_date + timedelta(hours=i) for i in range((end_date - start_date).days * 24)]
 
@@ -45,7 +45,7 @@ for timestamp in timestamps:
             strategy=random.choice(strategies),
             profit_loss=random.uniform(-100, 100),
             success=random.choice(['yes', 'no'])
-        ))  
+        ))
 print("Fake trade data generation completed.")  # Print statement for consistency
 
 # Insert fake trades into the database
@@ -69,7 +69,7 @@ for broker in brokers:
                 timestamp=timestamp
             )
             session.add(balance_record)
-session.commit()  # Commit each balance record individually
+            session.commit()  # Commit each balance record individually
             initial_balance = total_balance  # Update the initial balance for the next timestamp
             print(f"Inserted balance record for {broker}, {strategy} at {timestamp}. Total balance: {total_balance}")  # Print statement for consistency
 
@@ -84,7 +84,7 @@ session.commit()  # Commit each balance record individually
                     latest_price=latest_price
                 )
                 session.add(position_record)
-session.commit()  # Commit each position record individually
+                session.commit()  # Commit each position record individually
                 print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {quantity}, Latest price: {latest_price}")  # Print statement for consistency
 
 print("Fake balance data and positions generation and insertion completed.")  # Print statement for consistency
