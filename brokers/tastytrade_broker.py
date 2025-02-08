@@ -40,16 +40,6 @@ class TastytradeBroker(BaseBroker):
         return formatted_symbol
 
     async def get_option_chain(self, underlying_symbol):
-        """
-        Fetch the option chain for a given underlying symbol.
-
-        Args:
-            session: Tastytrade API session.
-            underlying_symbol: The underlying symbol for which to fetch the option chain.
-
-        Returns:
-            An OptionChain object containing the option chain data.
-        """
         try:
             option_chain = await NestedOptionChain.get(self.session, underlying_symbol)
             return option_chain
@@ -69,7 +59,6 @@ class TastytradeBroker(BaseBroker):
         auth_response = response.json().get('data')
         self.auth = auth_response['session-token']
         self.headers["Authorization"] = self.auth
-        # Refresh the session
         self.session = Session(self.username, self.password)
         logger.info('Connected to Tastytrade API')
 
@@ -94,7 +83,6 @@ class TastytradeBroker(BaseBroker):
             account_value = account_data['net-liquidating-value']
             account_type = None
 
-            # TODO: is this redundant? Can we collapse/remove the above API calls?
             cash = account_data.get('cash-balance')
 
             logger.info('Account balances retrieved', extra={'account_type': account_type, 'buying_power': buying_power, 'value': account_value})
@@ -131,13 +119,10 @@ class TastytradeBroker(BaseBroker):
 
     @staticmethod
     def process_symbol(symbol):
-        # NOTE: Tastytrade API returns options positions with spaces in the symbol.
-        # Standardize them here. However this is not worth doing for futures options,
-        # since they're the only current broker that supports them.
         if is_futures_symbol(symbol):
             return symbol
         else:
-            return symbol.replace(' ', '')  # Remove spaces from the symbol
+            return symbol.replace(' ', '')
 
     @staticmethod
     def is_order_filled(order_response):
@@ -212,17 +197,15 @@ class TastytradeBroker(BaseBroker):
             if price is None:
                 price = round(last_price, 2)
 
-            # Convert to Decimal
             quantity = Decimal(quantity)
             price = Decimal(price)
 
-            # Map order_type to OrderAction
             if order_type.lower() == 'buy':
                 action = OrderAction.BUY_TO_OPEN
                 price_effect = PriceEffect.DEBIT
             elif order_type.lower() == 'sell':
                 action = OrderAction.SELL_TO_CLOSE
-                price_effect = PriceEffect.CREDIT
+                price_effect = PriceEffect.CREIT
             else:
                 raise ValueError(f"Unsupported order type: {order_type}")
 
@@ -231,7 +214,7 @@ class TastytradeBroker(BaseBroker):
             leg = symbol.build_leg(quantity, action)
 
             order = NewOrder(
-                time_in_force=OrderTimeInForce.DAY,  # Changed to DAY from IOC
+                time_in_force=OrderTimeInForce.DAY,
                 order_type=OrderType.LIMIT,
                 legs=[leg],
                 price=price,
@@ -289,14 +272,12 @@ class TastytradeBroker(BaseBroker):
 
     async def get_current_price(self, symbol):
         if ':' in symbol:
-            # Looks like this is already a streamer symbol
             pass
         elif is_futures_symbol(symbol):
             logger.info('Getting current price for futures symbol', extra={'symbol': symbol})
             option = FutureOption.get_future_option(self.session, symbol)
             symbol = option.streamer_symbol
         elif is_option(symbol):
-            # Convert to streamer symbol
             if ' ' not in symbol:
                 symbol = self.format_option_symbol(symbol)
             if '.' not in symbol:
@@ -312,14 +293,12 @@ class TastytradeBroker(BaseBroker):
 
     async def get_bid_ask(self, symbol):
         if ':' in symbol:
-            # Looks like this is already a streamer symbol
             pass
         elif is_futures_symbol(symbol):
             logger.info('Getting current price for futures symbol', extra={'symbol': symbol})
             option = FutureOption.get_future_option(self.session, symbol)
             symbol = option.streamer_symbol
         elif is_option(symbol):
-            # Convert to streamer symbol
             if ' ' not in symbol:
                 symbol = self.format_option_symbol(symbol)
             if '.' not in symbol:
@@ -332,23 +311,3 @@ class TastytradeBroker(BaseBroker):
                 return { "bid": quote.bidPrice, "ask": quote.askPrice }
             finally:
                 await streamer.close()
-
-    def get_cost_basis(self, symbol):
-        logger.info(f'Retrieving cost basis for symbol {symbol} from Tastytrade')
-        try:
-            url = f"{self.base_url}/accounts/{self.account_id}/positions"
-            response = requests.get(url, headers=self.headers)
-            response.raise_for_status()
-            positions_data = response.json()['data']['items']
-
-            for position in positions_data:
-                if position['symbol'] == symbol:
-                    cost_basis = position.get('average-open-price')
-                    logger.info(f"Cost basis for {symbol}: {cost_basis}")
-                    return cost_basis
-
-            logger.warning(f"No position found for {symbol}")
-            return None
-        except requests.RequestException as e:
-            logger.error(f"Failed to retrieve cost basis for {symbol}: {str(e)}")
-            return None
