@@ -1,9 +1,13 @@
-# This is a script to make fake data for testing the UI
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from database.models import Trade, AccountInfo, Balance, Position, drop_then_init_db
 from datetime import datetime, timedelta
 import random
+
+app = Flask(__name__)
+CORS(app)
 
 DATABASE_URL = "sqlite:///trading.db"
 engine = create_engine(DATABASE_URL)
@@ -18,7 +22,7 @@ brokers = ['E*TRADE', 'Tradier', 'Tastytrade']
 strategies = ['SMA', 'EMA', 'RSI', 'Bollinger Bands', 'MACD', 'VWAP', 'Ichimoku']
 
 # Generate unique hourly timestamps for the past 30 days
-start_date = datetime.utcnow() - timedelta(days=5)
+start_date = datetime.utcnow() - timedelta(days=2)
 end_date = datetime.utcnow()
 timestamps = [start_date + timedelta(hours=i) for i in range((end_date - start_date).days * 24)]
 
@@ -64,25 +68,24 @@ for broker in brokers:
                 total_balance=total_balance,
                 timestamp=timestamp
             )
-            session.add(balance_record)
-            session.commit()  # Commit each balance record individually
-            initial_balance = total_balance  # Update the initial balance for the next timestamp
-            print(f"Inserted balance record for {broker}, {strategy} at {timestamp}. Total balance: {total_balance}")
+session.add(balance_record)
+session.commit()  # Commit each balance record individually
+initial_balance = total_balance  # Update the initial balance for the next timestamp
+print(f"Inserted balance record for {broker}, {strategy} at {timestamp}. Total balance: {total_balance}")
 
             # Generate and insert fake positions for each balance record
-        for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
-            quantity = random.randint(1, 100)
-            latest_price = random.uniform(100, 3000)
-            position_record = Position(
-                broker=broker,
-                strategy=strategy,
-                symbol=symbol,
-                quantity=quantity,
-                latest_price=latest_price
-            )
-            session.add(position_record)
-            session.commit()
-            print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {quantity}, Latest price: {latest_price}")
+            for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
+                quantity = random.randint(1, 100)
+                latest_price = random.uniform(100, 3000)
+                position_record = Position(
+                    balance_id=balance_record.id,
+                    symbol=symbol,
+                    quantity=quantity,
+                    latest_price=latest_price
+                )
+session.add(position_record)
+session.commit()
+print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {quantity}, Latest price: {latest_price}")
 
 print("Fake balance data and positions generation and insertion completed.")
 
@@ -98,3 +101,21 @@ print("Inserting fake account data into the database...")
 session.add_all(fake_accounts)
 session.commit()
 print("Fake account data inserted into the database.")
+
+@app.route('/positions', methods=['GET'])
+def get_positions():
+    balance_id = request.args.get('balance_id')
+    positions = session.query(Position).filter_by(balance_id=balance_id).all()
+    return jsonify([{
+        'id': pos.id,
+        'balance_id': pos.balance_id,
+        'strategy': pos.strategy,
+        'broker': pos.broker,
+        'symbol': pos.symbol,
+        'quantity': pos.quantity,
+        'latest_price': pos.latest_price,
+        'last_updated': pos.last_updated.isoformat()
+    } for pos in positions])
+
+if __name__ == "__main__":
+    app.run(debug=True)
