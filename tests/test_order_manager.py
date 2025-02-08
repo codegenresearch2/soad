@@ -10,13 +10,13 @@ from order_manager.manager import OrderManager, MARK_ORDER_STALE_AFTER, PEGGED_O
 PEGGED_ORDER_CANCEL_AFTER = 15  # 15 seconds
 
 
-@pytest_asyncio.fixture
+@pytest.fixture
 async def mock_db_manager():
     """Mock the DBManager."""
     return AsyncMock()
 
 
-@pytest_asyncio.fixture
+@pytest.fixture
 async def mock_broker():
     """Mock a broker."
     broker = AsyncMock()
@@ -25,7 +25,7 @@ async def mock_broker():
     return broker
 
 
-@pytest_asyncio.fixture
+@pytest.fixture
 async def order_manager(mock_db_manager, mock_broker):
     """Create an instance of OrderManager with mocked dependencies."
     engine = MagicMock()
@@ -74,8 +74,6 @@ async def test_reconcile_order_stale(order_manager, mock_db_manager, mock_broker
     mock_broker.update_positions.assert_not_called()
 
 
-# TODO: Fix
-@pytest.mark.skip
 @pytest.mark.asyncio
 async def test_reconcile_order_filled(order_manager, mock_db_manager, mock_broker):
     """Test the reconcile_order method for filled orders."""
