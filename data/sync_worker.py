@@ -46,7 +46,7 @@ class PositionService:
         await self._add_missing_positions(session, broker, db_positions, broker_positions, now)
         session.add_all(db_positions.values())  # Add updated positions to the session
         await session.commit()
-        logger.info(f"Reconciliation for broker {broker} completed.")
+        logger.info(f'Reconciliation for broker {broker} completed.')
 
     async def _get_positions(self, session, broker):
         broker_instance = await self.broker_service.get_broker_instance(broker)
@@ -66,7 +66,7 @@ class PositionService:
             await session.execute(
                 sqlalchemy.delete(Position).where(Position.broker == broker, Position.symbol.in_(symbols_to_remove))
             )
-            logger.info(f"Removed positions from DB for broker {broker}: {symbols_to_remove}")
+            logger.info(f'Removed positions from DB for broker {broker}: {symbols_to_remove}')
 
     async def _add_missing_positions(self, session, broker, db_positions, broker_positions, now):
         for symbol, broker_position in broker_positions.items():
@@ -79,7 +79,7 @@ class PositionService:
     def _update_existing_position(self, existing_position, broker_position, now):
         existing_position.quantity = broker_position['quantity']
         existing_position.last_updated = now
-        logger.info(f"Updated existing position: {existing_position.symbol}")
+        logger.info(f'Updated existing position: {existing_position.symbol}')
 
     def _insert_new_position(self, session, broker, broker_position, now):
         new_position = Position(
@@ -90,7 +90,7 @@ class PositionService:
             last_updated=now,
         )
         session.add(new_position)
-        logger.info(f"Added uncategorized position to DB: {new_position.symbol}")
+        logger.info(f'Added uncategorized position to DB: {new_position.symbol}')
 
     async def update_position_prices_and_volatility(self, session, positions, timestamp):
         now_naive = self._strip_timezone(timestamp or datetime.now())
@@ -106,7 +106,7 @@ class PositionService:
             try:
                 await self._update_position_price(session, position, now_naive)
             except Exception:
-                logger.exception(f"Error processing position {position.symbol}")
+                logger.exception(f'Error processing position {position.symbol}')
 
     async def _update_position_price(self, session, position, now_naive):
         latest_price = await self._fetch_and_log_price(position)
@@ -146,7 +146,7 @@ class PositionService:
         logger.debug(f'Calculating historical volatility for {symbol}')
         try:
             stock = yf.Ticker(symbol)
-            hist = stock.history(period="1y")
+            hist = stock.history(period='1y')
             hist['returns'] = hist['Close'].pct_change()
             return hist['returns'].std() * (252 ** 0.5)
         except Exception as e:
@@ -163,7 +163,7 @@ class BalanceService:
         await self._update_each_strategy_balance(session, broker, strategies, timestamp)
         await self.update_uncategorized_balances(session, broker, timestamp)
         await session.commit()
-        logger.info(f"Updated all strategy balances for broker {broker}")
+        logger.info(f'Updated all strategy balances for broker {broker}')
 
     async def _get_strategies(self, session, broker):
         strategies_result = await session.execute(
@@ -214,14 +214,14 @@ class BalanceService:
             timestamp=timestamp,
         )
         session.add(new_balance_record)
-        logger.debug(f"Updated {balance_type} balance for strategy {strategy}: {balance_value}")
+        logger.debug(f'Updated {balance_type} balance for strategy {strategy}: {balance_value}')
 
     async def update_uncategorized_balances(self, session, broker, timestamp):
         total_value, categorized_balance_sum = await self._get_account_balance_info(session, broker)
-        logger.info(f"Broker {broker}: Total account value: {total_value}, Categorized balance sum: {categorized_balance_sum}")
+        logger.info(f'Broker {broker}: Total account value: {total_value}, Categorized balance sum: {categorized_balance_sum}')
 
         uncategorized_balance = max(0, total_value - categorized_balance_sum)
-        logger.debug(f"Calculated uncategorized balance for broker {broker}: {uncategorized_balance}")
+        logger.debug(f'Calculated uncategorized balance for broker {broker}: {uncategorized_balance}')
 
         self._insert_uncategorized_balance(session, broker, uncategorized_balance, timestamp)
 
@@ -240,7 +240,7 @@ class BalanceService:
         for strategy in strategies:
             cash_balance = await self._get_cash_balance(session, broker, strategy)
             positions_balance = await self._calculate_positions_balance(session, broker, strategy)
-            logger.info(f"Strategy: {strategy}, Cash: {cash_balance}, Positions: {positions_balance}")
+            logger.info(f'Strategy: {strategy}, Cash: {cash_balance}, Positions: {positions_balance}')
             total_balance += (cash_balance + positions_balance)
         return total_balance
 
@@ -253,7 +253,7 @@ class BalanceService:
             timestamp=timestamp,
         )
         session.add(new_balance_record)
-        logger.debug(f"Updated uncategorized balance for broker {broker}: {uncategorized_balance}")
+        logger.debug(f'Updated uncategorized balance for broker {broker}: {uncategorized_balance}')
 
 
 async def sync_worker(engine, brokers):
@@ -271,10 +271,10 @@ async def _get_async_engine(engine):
     if isinstance(engine, str):
         return create_async_engine(engine)
     if isinstance(engine, sqlalchemy.engine.Engine):
-        raise ValueError("AsyncEngine expected, but got a synchronous Engine.")
+        raise ValueError('AsyncEngine expected, but got a synchronous Engine.')
     if isinstance(engine, sqlalchemy.ext.asyncio.AsyncEngine):
         return engine
-    raise ValueError("Invalid engine type. Expected a connection string or an AsyncEngine object.")
+    raise ValueError('Invalid engine type. Expected a connection string or an AsyncEngine object.')
 
 
 async def _run_sync_worker_iteration(Session, position_service, balance_service, brokers):
