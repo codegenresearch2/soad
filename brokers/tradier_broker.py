@@ -39,6 +39,7 @@ class TradierBroker(BaseBroker):
 
             if not account_info:
                 logger.error("Invalid account info response")
+                return
 
             if account_info.get('cash'):
                 self.account_type = 'cash'
