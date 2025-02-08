@@ -16,8 +16,8 @@ drop_then_init_db(engine)
 BROKERS = ['E*TRADE', 'Tradier', 'Tastytrade']
 STRATEGIES = ['SMA', 'EMA', 'RSI', 'Bollinger Bands', 'MACD', 'VWAP', 'Ichimoku']
 
-# Generate unique hourly timestamps for the past 30 days
-START_DATE = datetime.utcnow() - timedelta(days=30)
+# Generate unique hourly timestamps for the past 5 days
+START_DATE = datetime.utcnow() - timedelta(days=5)
 END_DATE = datetime.utcnow()
 TIMESTAMPS = [START_DATE + timedelta(hours=i) for i in range((END_DATE - START_DATE).days * 24)]
 
@@ -53,20 +53,30 @@ print("Fake trades inserted into the database.")  # Use f-string for formatted s
 print("Generating and inserting fake balance data and positions...")  # Use f-string for formatted strings
 for broker in BROKERS:
     for strategy in STRATEGIES:
-        INITIAL_BALANCE = random.uniform(5000, 20000)  # Use f-string for formatted strings
+        CASH_BALANCE = random.uniform(5000, 20000)
+        POSITION_BALANCE = random.uniform(5000, 20000)
         for timestamp in TIMESTAMPS:
-            TOTAL_BALANCE = INITIAL_BALANCE + random.uniform(-1000, 1000)  # Simulate some profit/loss
-            balance_record = Balance(
+            cash_balance_record = Balance(
                 broker=broker,
                 strategy=strategy,
-                initial_balance=INITIAL_BALANCE,
-                total_balance=TOTAL_BALANCE,
+                type='cash',
+                balance=CASH_BALANCE,
                 timestamp=timestamp
-            )  # Use f-string for formatted strings
-            session.add(balance_record)  # Use f-string for formatted strings
-            session.commit()  # Commit each balance record individually
-            INITIAL_BALANCE = TOTAL_BALANCE  # Update the initial balance for the next timestamp
-            print(f"Inserted balance record for {broker}, {strategy} at {timestamp}. Total balance: {TOTAL_BALANCE}")  # Use f-string for formatted strings
+            )
+            session.add(cash_balance_record)
+            session.commit()
+            CASH_BALANCE = random.uniform(5000, 20000)
+
+            position_balance_record = Balance(
+                broker=broker,
+                strategy=strategy,
+                type='positions',
+                balance=POSITION_BALANCE,
+                timestamp=timestamp
+            )
+            session.add(position_balance_record)
+            session.commit()
+            POSITION_BALANCE = random.uniform(5000, 20000)
 
             # Generate and insert fake positions for each balance record
             for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
@@ -78,9 +88,9 @@ for broker in BROKERS:
                     symbol=symbol,
                     quantity=QUANTITY,
                     latest_price=LATEST_PRICE
-                )  # Use f-string for formatted strings
-                session.add(position_record)  # Use f-string for formatted strings
-                session.commit()  # Use f-string for formatted strings
+                )
+                session.add(position_record)
+                session.commit()
                 print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {QUANTITY}, Latest price: {LATEST_PRICE}")  # Use f-string for formatted strings
 
 print("Fake balance data and positions generation and insertion completed.")  # Use f-string for formatted strings
