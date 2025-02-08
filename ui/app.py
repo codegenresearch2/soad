@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, request
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo, Balance, Position
@@ -7,14 +7,14 @@ import numpy as np
 from scipy.stats import norm
 import os
 
-app = Flask("TradingAPI")
-CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
+app = Flask('TradingAPI')
+CORS(app, origins=['http://localhost:3000'], supports_credentials=True)
 
 @app.route('/trades_per_strategy')
 def trades_per_strategy():
     trades_count = app.session.query(Trade.strategy, Trade.broker, func.count(Trade.id)).group_by(Trade.strategy, Trade.broker).all()
-    trades_count_serializable = [{"strategy": strategy, "broker": broker, "count": count} for strategy, broker, count in trades_count]
-    return jsonify({"trades_per_strategy": trades_count_serializable})
+    trades_count_serializable = [{'strategy': strategy, 'broker': broker, 'count': count} for strategy, broker, count in trades_count]
+    return jsonify({'trades_per_strategy': trades_count_serializable})
 
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 def historic_balance_per_strategy():
@@ -23,21 +23,21 @@ def historic_balance_per_strategy():
             Balance.strategy,
             Balance.broker,
             func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
-            Balance.balance,
+            Balance.total_balance,
         ).group_by(
             Balance.strategy, Balance.broker, 'hour'
         ).order_by(
             Balance.strategy, Balance.broker, 'hour'
         ).all()
         historical_balances_serializable = []
-        for strategy, broker, hour, balance in historical_balances:
+        for strategy, broker, hour, total_balance in historical_balances:
             historical_balances_serializable.append({
-                "strategy": strategy,
-                "broker": broker,
-                "hour": hour,
-                "balance": balance
+                'strategy': strategy,
+                'broker': broker,
+                'hour': hour,
+                'total_balance': total_balance
             })
-        return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
+        return jsonify({'historic_balance_per_strategy': historical_balances_serializable})
     finally:
         app.session.close()
 
@@ -45,7 +45,7 @@ def historic_balance_per_strategy():
 def account_values():
     accounts = app.session.query(AccountInfo).all()
     accounts_data = {account.broker: account.value for account in accounts}
-    return jsonify({"account_values": accounts_data})
+    return jsonify({'account_values': accounts_data})
 
 @app.route('/trade_success_rate')
 def trade_success_rate():
@@ -58,14 +58,14 @@ def trade_success_rate():
         failed_trades = total_trades - successful_trades
 
         success_rate_by_strategy_and_broker.append({
-            "strategy": strategy,
-            "broker": broker,
-            "total_trades": total_trades,
-            "successful_trades": successful_trades,
-            "failed_trades": failed_trades
+            'strategy': strategy,
+            'broker': broker,
+            'total_trades': total_trades,
+            'successful_trades': successful_trades,
+            'failed_trades': failed_trades
         })
 
-    return jsonify({"trade_success_rate": success_rate_by_strategy_and_broker})
+    return jsonify({'trade_success_rate': success_rate_by_strategy_and_broker})
 
 @app.route('/positions')
 def get_positions():
@@ -106,19 +106,9 @@ def get_trades():
         query = query.filter(Trade.strategy.in_(strategies))
 
     trades = query.all()
-    trades_data = [{
-        'id': trade.id,
-        'broker': trade.broker,
-        'strategy': trade.strategy,
-        'symbol': trade.symbol,
-        'quantity': trade.quantity,
-        'price': trade.price,
-        'profit_loss': trade.profit_loss,
-        'timestamp': trade.timestamp
-    } for trade in trades]
+    trades_data = [{'id': trade.id, 'broker': trade.broker, 'strategy': trade.strategy, 'symbol': trade.symbol, 'quantity': trade.quantity, 'price': trade.price, 'profit_loss': trade.profit_loss, 'timestamp': trade.timestamp} for trade in trades]
 
     return jsonify({'trades': trades_data})
-
 
 @app.route('/trade_stats', methods=['GET'])
 def get_trade_stats():
@@ -235,7 +225,6 @@ def get_sharpe_ratio():
     sharpe_ratio = mean_return / std_dev_return if std_dev_return != 0 else 0
 
     return jsonify({'sharpe_ratio': sharpe_ratio})
-
 
 def create_app(engine):
     Session = sessionmaker(bind=engine)
