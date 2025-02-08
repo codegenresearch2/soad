@@ -28,9 +28,8 @@ class BaseStrategy(ABC):
                 strategy_balance = Balance(
                     strategy=self.strategy_name,
                     broker=self.broker.broker_name,
-                    total_balance=self.starting_capital,
+                    balance=self.starting_capital,
                     type='cash'
                 )
                 session.add(strategy_balance)
                 session.commit()
-    }
