@@ -46,14 +46,15 @@ class BaseBroker(ABC):
 
     def get_account_info(self):
         account_info = self._get_account_info()
-        self.db_manager.add_account_info(AccountInfo(broker=self.broker_name, value=account_info['value']))        return account_info
+        self.db_manager.add_account_info(AccountInfo(broker=self.broker_name, value=account_info['value']))
+        return account_info
 
     def has_bought_today(self, symbol):
         today = datetime.now().date()
         with self.Session() as session:
             trades = session.query(Trade).filter(                and_(                    Trade.symbol == symbol,                    Trade.broker == self.broker_name,                    Trade.order_type == 'buy',                    Trade.timestamp >= today                )            ).all()            return len(trades) > 0
 
-    def update_positions(self, session, trade, order_type):
+    def update_positions(self, session, trade):
         position = session.query(Position).filter_by(symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy).first()
 
         if trade.order_type == 'buy':
@@ -120,7 +121,7 @@ class BaseBroker(ABC):
             session.commit()
 
             # Update positions
-            self.update_positions(session, trade, order_type)
+            self.update_positions(session, trade)
 
         return response
 
