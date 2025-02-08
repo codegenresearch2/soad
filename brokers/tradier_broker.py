@@ -41,15 +41,15 @@ class TradierBroker(BaseBroker):
                 logger.error("Invalid account info response")
                 return
 
-            if account_info.get('cash'):
+            if 'cash' in account_info:
                 self.account_type = 'cash'
                 buying_power = account_info['cash']['cash_available']
                 account_value = account_info['total_equity']
-            elif account_info.get('margin'):
+            elif 'margin' in account_info:
                 self.account_type = 'margin'
                 buying_power = account_info['margin']['stock_buying_power']
                 account_value = account_info['total_equity']
-            elif account_info.get('pdt'):
+            elif 'pdt' in account_info:
                 self.account_type = 'pdt'
                 buying_power = account_info['pdt']['stock_buying_power']
                 account_value = account_info['total_equity']
