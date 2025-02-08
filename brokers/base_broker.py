@@ -2,15 +2,14 @@ from abc import ABC, abstractmethod
 from sqlalchemy.orm import sessionmaker
 from database.db_manager import DBManager
 from database.models import Trade, AccountInfo, Balance, Position
-from datetime import datetime
+from datetime import datetime, timedelta
 
-class BaseBroker(ABC):  
-    def __init__(self, api_key, secret_key, broker_name, engine, prevent_day_trading=False):  
+class BaseBroker(ABC):
+    def __init__(self, api_key, secret_key, broker_name, engine):
         self.api_key = api_key
         self.secret_key = secret_key
         self.broker_name = broker_name
         self.engine = engine
-        self.prevent_day_trading = prevent_day_trading
         self.db_manager = DBManager(engine)
         self.Session = sessionmaker(bind=engine)
         self.account_id = None
@@ -45,11 +44,14 @@ class BaseBroker(ABC):
 
     def get_account_info(self):
         account_info = self._get_account_info()
-        self.db_manager.add_account_info(AccountInfo(broker=self.broker_name, value=account_info['value']))  
+        self.db_manager.add_account_info(AccountInfo(broker=self.broker_name, value=account_info['value']))
         return account_info
 
     def place_order(self, symbol, quantity, order_type, strategy, price=None):
-        response = self._place_order(symbol, quantity, order_type, price)  
+        if order_type == 'buy' and self.has_bought_today(symbol):
+            raise ValueError(f'Cannot buy {symbol} today as a buy order has already been placed.')  # Enforce day trading restriction
+
+        response = self._place_order(symbol, quantity, order_type, price)
         with self.Session() as session:
             trade = Trade(
                 symbol=symbol,
@@ -81,8 +83,7 @@ class BaseBroker(ABC):
             balance.total_balance += trade.executed_price * trade.quantity
             session.commit()
 
-            # Update positions
-            self.update_positions(session, balance.id, symbol, quantity, response['filled_price'])
+            self.update_positions(session, balance.id, symbol, quantity, response['filled_price'])  # Corrected method call
 
         return response
 
@@ -104,6 +105,19 @@ class BaseBroker(ABC):
 
     def get_options_chain(self, symbol, expiration_date):
         return self._get_options_chain(symbol, expiration_date)
+
+    def has_bought_today(self, symbol):
+        with self.Session() as session:
+            today = datetime.now().date()
+            start_of_day = datetime.combine(today, datetime.min.time())
+            end_of_day = datetime.combine(today, datetime.max.time())
+            trade = session.query(Trade).filter(
+                Trade.symbol == symbol,
+                Trade.order_type == 'buy',
+                Trade.timestamp >= start_of_day,
+                Trade.timestamp <= end_of_day
+            ).first()
+            return trade is not None
 
     def update_positions(self, session, balance_id, symbol, quantity, price):
         position = session.query(Position).filter_by(balance_id=balance_id, symbol=symbol).first()
@@ -129,9 +143,9 @@ class BaseBroker(ABC):
         if not trade:
             return
 
-        executed_price = order_info.get('filled_price', trade.price)  # Match the correct key
+        executed_price = order_info.get('filled_price', trade.price)
         if executed_price is None:
-            executed_price = trade.price  # Ensure we have a valid executed price
+            executed_price = trade.price
 
         trade.executed_price = executed_price
         profit_loss = self.db_manager.calculate_profit_loss(trade)
