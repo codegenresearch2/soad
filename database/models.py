@@ -55,14 +55,20 @@ class Position(Base):
     symbol = Column(String, nullable=False)
     quantity = Column(Float, nullable=False)
     latest_price = Column(Float, nullable=False)
+    broker = Column(String, nullable=False)
+    strategy = Column(String, nullable=False)
+    last_updated = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     balance = relationship('Balance', back_populates='positions')
 
 
 def drop_then_init_db(engine):
-    Base.metadata.drop_all(engine)  # Drop existing tables
-    Base.metadata.create_all(engine)  # Create new tables
+    # Drop existing tables
+    Base.metadata.drop_all(engine)
+    # Create new tables
+    Base.metadata.create_all(engine)
 
 
 def init_db(engine):
-    Base.metadata.create_all(engine)  # Create new tables
+    # Create new tables
+    Base.metadata.create_all(engine)
