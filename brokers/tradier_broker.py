@@ -4,6 +4,7 @@ from brokers.base_broker import BaseBroker
 from utils.logger import logger  # Import the logger
 from utils.utils import extract_underlying_symbol
 
+
 class TradierBroker(BaseBroker):
     def __init__(self, api_key, secret_key, engine, **kwargs):
         super().__init__(api_key, secret_key, 'Tradier', engine=engine, **kwargs)
@@ -44,22 +45,9 @@ class TradierBroker(BaseBroker):
                 logger.error('Invalid account info response')
                 return
 
-            if account_info.get('cash'):
-                self.account_type = 'cash'
-                buying_power = account_info.get('cash', {}).get('cash_available', 0)
-                account_value = account_info.get('total_equity', 0)
-            elif account_info.get('margin'):
-                self.account_type = 'margin'
-                buying_power = account_info.get('margin', {}).get('stock_buying_power', 0)
-                account_value = account_info.get('total_equity', 0)
-            elif account_info.get('pdt'):
-                self.account_type = 'pdt'
-                buying_power = account_info.get('pdt', {}).get('stock_buying_power', 0)
-                account_value = account_info.get('total_equity', 0)
-            else:
-                logger.error('Unknown account type')
-                return
-
+            self.account_type = account_info.get('account_type', 'unknown')
+            buying_power = account_info.get('buying_power', 0)
+            account_value = account_info.get('total_equity', 0)
             cash = account_info.get('cash', 0)
 
             logger.info('Account balances retrieved',
