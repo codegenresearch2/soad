@@ -16,7 +16,10 @@ class TestTastytradeBroker(unittest.TestCase):
     @patch('brokers.tastytrade_broker.requests.post')  
     def test_connect(self, mock_post):
         self.mock_connect(mock_post)
-        self.broker.connect()
+        try:
+            self.broker.connect()
+        except KeyError as e:
+            self.fail(f"Connect method failed with KeyError: {e}")
         self.assertTrue(hasattr(self.broker, 'session_token'))
         self.assertTrue(hasattr(self.broker, 'headers'))
 
