@@ -12,17 +12,17 @@ session = Session()
 # Initialize the database
 drop_then_init_db(engine)
 
-# Define brokers and strategies
+# Define constants
 BROKERS = ['E*TRADE', 'Tradier', 'Tastytrade']
 STRATEGIES = ['SMA', 'EMA', 'RSI', 'Bollinger Bands', 'MACD', 'VWAP', 'Ichimoku']
-
-# Generate unique hourly timestamps for the past 30 days
-START_DATE = datetime.utcnow() - timedelta(days=30)
+NUM_TRADES_PER_HOUR = 1
+START_DATE = datetime.utcnow() - timedelta(days=5)
 END_DATE = datetime.utcnow()
+
+# Generate unique hourly timestamps for the past 5 days
 TIMESTAMPS = [START_DATE + timedelta(hours=i) for i in range((END_DATE - START_DATE).days * 24)]
 
 # Generate fake trade data
-NUM_TRADES_PER_HOUR = 1  # Number of trades per hour
 FAKE_TRADES = []
 
 print("Generating fake trade data...")  # Use f-string for formatted strings
@@ -51,32 +51,32 @@ print("Fake trades inserted into the database.")  # Use f-string for formatted s
 
 # Generate and insert fake balance data and positions
 print("Generating and inserting fake balance data and positions...")  # Use f-string for formatted strings
+cash_balance = random.uniform(5000, 20000)
+position_balance = random.uniform(5000, 20000)
 for broker in BROKERS:
     for strategy in STRATEGIES:
-        CASH_BALANCE = random.uniform(5000, 20000)
-        POSITION_BALANCE = random.uniform(5000, 20000)
         for timestamp in TIMESTAMPS:
             cash_balance_record = Balance(
                 broker=broker,
                 strategy=strategy,
                 type='cash',
-                balance=CASH_BALANCE,
+                balance=cash_balance,
                 timestamp=timestamp
             )
             session.add(cash_balance_record)
             session.commit()
-            CASH_BALANCE += random.uniform(-1000, 1000)  # Update cash balance based on profit/loss
+            cash_balance += random.uniform(-1000, 1000)  # Update cash balance based on profit/loss
 
             position_balance_record = Balance(
                 broker=broker,
                 strategy=strategy,
                 type='positions',
-                balance=POSITION_BALANCE,
+                balance=position_balance,
                 timestamp=timestamp
             )
             session.add(position_balance_record)
             session.commit()
-            POSITION_BALANCE += random.uniform(-1000, 1000)  # Update position balance based on profit/loss
+            position_balance += random.uniform(-1000, 1000)  # Update position balance based on profit/loss
 
             # Generate and insert fake positions for each balance record
             for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
