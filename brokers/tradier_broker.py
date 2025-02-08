@@ -44,9 +44,22 @@ class TradierBroker(BaseBroker):
                 logger.error('Invalid account info response')
                 return
 
-            self.account_type = account_info.get('account_type', 'unknown')
-            buying_power = account_info.get('buying_power', 0)
-            account_value = account_info.get('total_equity', 0)
+            if account_info.get('cash'):
+                self.account_type = 'cash'
+                buying_power = account_info.get('cash', {}).get('cash_available', 0)
+                account_value = account_info.get('total_equity', 0)
+            elif account_info.get('margin'):
+                self.account_type = 'margin'
+                buying_power = account_info.get('margin', {}).get('stock_buying_power', 0)
+                account_value = account_info.get('total_equity', 0)
+            elif account_info.get('pdt'):
+                self.account_type = 'pdt'
+                buying_power = account_info.get('pdt', {}).get('stock_buying_power', 0)
+                account_value = account_info.get('total_equity', 0)
+            else:
+                logger.error('Unknown account type')
+                return
+
             cash = account_info.get('cash', 0)
 
             logger.info('Account balances retrieved',
