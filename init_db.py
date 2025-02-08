@@ -21,8 +21,8 @@ drop_then_init_db(engine)
 brokers = ['E*TRADE', 'Tradier', 'Tastytrade']
 strategies = ['SMA', 'EMA', 'RSI', 'Bollinger Bands', 'MACD', 'VWAP', 'Ichimoku']
 
-# Generate unique hourly timestamps for the past 5 days
-start_date = datetime.utcnow() - timedelta(days=5)
+# Generate unique hourly timestamps for the past 30 days
+start_date = datetime.utcnow() - timedelta(days=30)
 end_date = datetime.utcnow()
 timestamps = [start_date + timedelta(hours=i) for i in range((end_date - start_date).days * 24)]
 
@@ -68,10 +68,10 @@ for broker in brokers:
                 total_balance=total_balance,
                 timestamp=timestamp
             )
-session.add(balance_record)
+            session.add(balance_record)
 session.commit()  # Commit each balance record individually
-initial_balance = total_balance  # Update the initial balance for the next timestamp
-print(f"Inserted balance record for {broker}, {strategy} at {timestamp}. Total balance: {total_balance}")
+            initial_balance = total_balance  # Update the initial balance for the next timestamp
+            print(f"Inserted balance record for {broker}, {strategy} at {timestamp}. Total balance: {total_balance}")
 
             # Generate and insert fake positions for each balance record
             for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
@@ -83,9 +83,9 @@ print(f"Inserted balance record for {broker}, {strategy} at {timestamp}. Total b
                     quantity=quantity,
                     latest_price=latest_price
                 )
-session.add(position_record)
+                session.add(position_record)
 session.commit()
-print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {quantity}, Latest price: {latest_price}")
+                print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {quantity}, Latest price: {latest_price}")
 
 print("Fake balance data and positions generation and insertion completed.")
 
