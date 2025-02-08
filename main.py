@@ -34,14 +34,13 @@ def start_trading_system(config_path):
 
 
 def start_api_server(config_path=None):
-    if config_path is not None:
-        config = parse_config(config_path)
-        engine = create_engine(config['database']['url'] if 'database' in config and 'url' in config['database'] else 'sqlite:///default_trading_system.db')
-    else:
-        config = {}
-        engine = create_engine('sqlite:///default_trading_system.db')
+    config = parse_config(config_path) if config_path else {}
+    engine = create_engine(config['database']['url'] if 'database' in config and 'url' in config['database'] else 'sqlite:///default_trading_system.db')
     # Initialize the database
     init_db(engine)
+    if config_path:
+        # Initialize the brokers
+        brokers = initialize_brokers(config)
     app = create_app(engine)
     app.run(host="0.0.0.0", port=8000, debug=True)
 
@@ -56,7 +55,7 @@ def main():
             parser.error('--config is required when mode is "trade"')
         start_trading_system(args.config)
     elif args.mode == 'api':
-        start_api_server()
+        start_api_server(args.config)
 
 if __name__ == "__main__":
     main()
