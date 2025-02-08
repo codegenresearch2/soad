@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, create_engine, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
 Base = declarative_base()
@@ -21,10 +21,6 @@ class Trade(Base):
     profit_loss = Column(Float, nullable=True)
     success = Column(String, nullable=True)
     balance_id = Column(Integer, ForeignKey('balances.id'))
-
-    def prevent_day_trading(self):
-        # Implement day trading prevention logic
-        pass
 
 class AccountInfo(Base):
     __tablename__ = 'account_info'
