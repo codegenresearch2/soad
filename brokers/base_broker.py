@@ -6,14 +6,14 @@ from database.models import Trade, AccountInfo, Balance, Position
 from datetime import datetime
 
 class BaseBroker(ABC):
-    def __init__(self, api_key, secret_key, broker_name, engine, prevent_day_trading=False):
+    def __init__(self, api_key, secret_key, broker_name, engine):
         self.api_key = api_key
         self.secret_key = secret_key
         self.broker_name = broker_name
         self.db_manager = DBManager(engine)
         self.Session = sessionmaker(bind=engine)
         self.account_id = None
-        self.prevent_day_trading = prevent_day_trading
+        self.prevent_day_trading = False
 
     @abstractmethod
     def connect(self):
@@ -51,14 +51,7 @@ class BaseBroker(ABC):
     def has_bought_today(self, symbol):
         today = datetime.now().date()
         with self.Session() as session:
-            trades = session.query(Trade).filter(
-                and_(
-                    Trade.symbol == symbol,
-                    Trade.broker == self.broker_name,
-                    Trade.order_type == 'buy',
-                    Trade.timestamp >= today
-                )
-            ).all()
+            trades = session.query(Trade).filter(and_(Trade.symbol == symbol, Trade.broker == self.broker_name, Trade.order_type == 'buy', Trade.timestamp >= today)).all()
             return len(trades) > 0
 
     def update_positions(self, session, trade):
@@ -84,8 +77,6 @@ class BaseBroker(ABC):
                 position.latest_price = trade.executed_price
                 if position.quantity < 0:
                     raise ValueError("Sell quantity exceeds current position quantity.")
-
-        session.commit()
 
     def place_order(self, symbol, quantity, order_type, strategy, price=None):
         # Check for day trading
@@ -128,7 +119,7 @@ class BaseBroker(ABC):
             session.commit()
 
             # Update positions
-            self.update_positions(session, trade, order_type)
+            self.update_positions(session, trade)
 
         return response
 
