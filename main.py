@@ -10,11 +10,12 @@ from sqlalchemy import create_engine
 def start_trading_system(config_path):
     # Parse the configuration file
     config = parse_config(config_path)
-    # Initialize the database engine
-    engine = create_engine(config['database']['url'] if 'database' in config and 'url' in config['database'] else 'sqlite:///default_trading_system.db')
-    init_db(engine)
     # Initialize the brokers
     brokers = initialize_brokers(config)
+    # Create the database engine
+    engine = create_engine(config['database']['url'] if 'database' in config and 'url' in config['database'] else 'sqlite:///default_trading_system.db')
+    # Initialize the database
+    init_db(engine)
     # Connect to each broker
     for broker in brokers.values():
         broker.connect()
@@ -39,6 +40,7 @@ def start_api_server(config_path=None):
     else:
         config = {}
         engine = create_engine('sqlite:///default_trading_system.db')
+    # Initialize the database
     init_db(engine)
     app = create_app(engine)
     app.run(host="0.0.0.0", port=8000, debug=True)
