@@ -72,13 +72,7 @@ STRATEGY_MAP = {
         strategy_name=strategy_name,
         rebalance_interval_minutes=config['rebalance_interval_minutes'],
         starting_capital=config['starting_capital'],
-        symbol=config.get('symbol', 'SPY'),
-        otm_percentage=config.get('otm_percentage', 0.05),
-        expiry_days=config.get('expiry_days', 30),
-        bet_percentage=config.get('bet_percentage', 0.1),
-        holding_period_days=config.get('holding_period_days', 14),
-        spike_percentage=config.get('spike_percentage', 500)
-    ),
+        symbol=config.get('symbol', 'SPY')),
     'custom': lambda broker, strategy_name, config: load_custom_strategy(broker, strategy_name, config)
 }
 
@@ -101,9 +95,10 @@ def load_custom_strategy(broker, strategy_name, config):
         class_name = config['class_name']
         starting_capital = config['starting_capital']
         rebalance_interval_minutes = config['rebalance_interval_minutes']
+        execution_style = config.get('execution_style', 'default')
         strategy_class = load_strategy_class(file_path, class_name)
         logger.info(f"Initializing custom strategy '{class_name}' with config: {config}")
-        return strategy_class(broker, strategy_name, starting_capital, rebalance_interval_minutes, **config.get('strategy_params', {}))
+        return strategy_class(broker, strategy_name, starting_capital, rebalance_interval_minutes, execution_style, **config.get('strategy_params', {}))
     except Exception as e:
         logger.error(f"Error initializing custom strategy '{config['class_name']}': {e}")
         raise
