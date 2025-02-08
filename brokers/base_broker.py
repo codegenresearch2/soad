@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from database.db_manager import DBManager
 from database.models import Trade, AccountInfo, Position, Balance
 from datetime import datetime
@@ -85,9 +85,7 @@ class BaseBroker(ABC):
 
             async with self.Session() as session:
                 result = await session.execute(
-                    select(Trade).filter_by(
-                        symbol=symbol, broker=self.broker_name, order_type='buy', timestamp=today
-                    )
+                    select(Trade).filter(and_(Trade.symbol == symbol, Trade.broker == self.broker_name, Trade.order_type == 'buy', Trade.timestamp == today))
                 )
                 trade = result.scalars().first()
                 return trade is not None
