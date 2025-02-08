@@ -11,6 +11,7 @@ from tastytrade.instruments import Equity, NestedOptionChain, Option, Future, Fu
 from tastytrade.dxfeed import EventType
 from tastytrade.order import NewOrder, OrderAction, OrderTimeInForce, OrderType, PriceEffect, OrderStatus
 
+
 class TastytradeBroker(BaseBroker):
     def __init__(self, username, password, engine, **kwargs):
         super().__init__(username, password, 'Tastytrade', engine=engine, **kwargs)
@@ -39,7 +40,9 @@ class TastytradeBroker(BaseBroker):
         formatted_symbol = f"{underlying:<6}{rest_of_symbol}"
         return formatted_symbol
 
+    @docstring
     async def get_option_chain(self, underlying_symbol):
+        """Fetch the option chain for a given underlying symbol."""
         try:
             option_chain = await NestedOptionChain.get(self.session, underlying_symbol)
             return option_chain
@@ -78,6 +81,7 @@ class TastytradeBroker(BaseBroker):
 
             if not account_data:
                 logger.error("Invalid account info response")
+                raise ValueError("Invalid account info response")
 
             buying_power = account_data['equity-buying-power']
             account_value = account_data['net-liquidating-value']
@@ -205,7 +209,7 @@ class TastytradeBroker(BaseBroker):
                 price_effect = PriceEffect.DEBIT
             elif order_type.lower() == 'sell':
                 action = OrderAction.SELL_TO_CLOSE
-                price_effect = PriceEffect.CREIT
+                price_effect = PriceEffect.CREDIT
             else:
                 raise ValueError(f"Unsupported order type: {order_type}")
 
