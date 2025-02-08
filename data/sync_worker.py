@@ -1,1 +1,1 @@
-To address the ImportError, ensure that the `data` directory is present in the project structure and contains an `__init__.py` file to make it a package. Additionally, include the directory containing the `data` package in the Python path within the test file. Here's how you can modify the test file `tests/test_sync_worker.py` to include the necessary changes:"} import sys"
+To fix the SyntaxError in the `sync_worker.py` file, ensure that all string literals are properly terminated. Here's the corrected version of the `sync_worker.py` file:"""\
