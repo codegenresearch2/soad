@@ -19,12 +19,12 @@ class ConstantPercentageStrategy(BaseStrategy):
             balance = session.query(Balance).filter_by(
                 strategy=self.strategy_name,
                 broker=self.broker.broker_name,
-                type='cash'  # Added filter for balance type
+                type='cash'
             ).first()
             if balance is None:
                 raise ValueError(f'Strategy balance not initialized for {self.strategy_name} strategy on {self.broker}.')
 
-            total_balance = balance.total_balance  # Derive total balance from the queried balance object
+            total_balance = balance.balance  # Ensure correct attribute name
 
         target_cash_balance = total_balance * self.cash_percentage
         target_investment_balance = total_balance - target_cash_balance
