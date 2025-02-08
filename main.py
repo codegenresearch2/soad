@@ -44,8 +44,11 @@ def start_api_server(config_path=None, local_testing=False):
     else:
         config = parse_config(config_path)
 
-    # Initialize the database
-    engine = create_engine(config['database']['url'] if 'database' in config and 'url' in config['database'] else 'sqlite:///default_trading_system.db')
+    # Initialize the database for local testing if specified
+    if local_testing:
+        engine = create_engine('sqlite:///local_testing.db')
+    else:
+        engine = create_engine(config['database']['url'] if 'database' in config and 'url' in config['database'] else 'sqlite:///default_trading_system.db')
     init_db(engine)
 
     app = create_app(engine)
