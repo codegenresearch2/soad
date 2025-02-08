@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from database.db_manager import DBManager
 from database.models import Trade, AccountInfo, Position, Balance
 from datetime import datetime
@@ -90,8 +90,7 @@ class BaseBroker(ABC):
             async with self.Session() as session:
                 result = await session.execute(
                     select(Trade)
-                    .filter_by(symbol=symbol, broker=self.broker_name, order_type='buy')
-                    .filter(Trade.timestamp >= today)
+                    .filter(and_(Trade.symbol == symbol, Trade.broker == self.broker_name, Trade.order_type == 'buy', Trade.timestamp >= today))
                 )
                 trade = result.scalars().first()
                 return trade is not None
@@ -162,7 +161,6 @@ class BaseBroker(ABC):
 
                 # Log after committing changes
                 logger.info('Position updated', extra={'position': position})
-       
         except Exception as e:
             logger.error('Failed to update positions', extra={'error': str(e)})
 
@@ -207,7 +205,7 @@ class BaseBroker(ABC):
                 await self.update_positions(trade)
 
                 latest_balance = await session.execute(
-                    session.query(Balance).filter_by(
+                    select(Balance).filter_by(
                         broker=self.broker_name, strategy=strategy, type='cash'
                     ).order_by(Balance.timestamp.desc())
                 )
@@ -277,7 +275,7 @@ class BaseBroker(ABC):
                 await self.update_positions(trade)
 
                 latest_balance = await session.execute(
-                    session.query(Balance).filter_by(
+                    select(Balance).filter_by(
                         broker=self.broker_name, strategy=strategy, type='cash'
                     ).order_by(Balance.timestamp.desc())
                 )
@@ -343,7 +341,7 @@ class BaseBroker(ABC):
                 await self.update_positions(trade)
 
                 latest_balance = await session.execute(
-                    session.query(Balance).filter_by(
+                    select(Balance).filter_by(
                         broker=self.broker_name, strategy=strategy, type='cash'
                     ).order_by(Balance.timestamp.desc())
                 )
