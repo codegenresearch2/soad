@@ -14,8 +14,6 @@ drop_then_init_db(engine)
 
 # Define constants
 NUM_TRADES_PER_HOUR = 1
-INITIAL_CASH_BALANCE = 10000.0
-INITIAL_POSITION_BALANCE = 10000.0
 BROKERS = ['E*TRADE', 'Tradier', 'Tastytrade']
 STRATEGIES = ['SMA', 'EMA', 'RSI', 'Bollinger Bands', 'MACD', 'VWAP', 'Ichimoku']
 START_DATE = datetime.utcnow() - timedelta(days=5)
@@ -55,8 +53,8 @@ print("Fake trades inserted into the database.")  # Use f-string for formatted s
 print("Generating and inserting fake balance data and positions...")  # Use f-string for formatted strings
 for broker in BROKERS:
     for strategy in STRATEGIES:
-        cash_balance = INITIAL_CASH_BALANCE
-        position_balance = INITIAL_POSITION_BALANCE
+        cash_balance = random.uniform(5000, 20000)
+        position_balance = random.uniform(5000, 20000)
         for timestamp in TIMESTAMPS:
             cash_balance_record = Balance(
                 broker=broker,
