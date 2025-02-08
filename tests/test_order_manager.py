@@ -1,6 +1,6 @@
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timedelta
 from database.models import Trade
 from order_manager.manager import OrderManager, MARK_ORDER_STALE_AFTER, PEGGED_ORDER_CANCEL_AFTER
@@ -10,14 +10,14 @@ from order_manager.manager import OrderManager, MARK_ORDER_STALE_AFTER, PEGGED_O
 PEGGED_ORDER_CANCEL_AFTER = 15  # 15 seconds
 
 
-@pytest_asyncio.fixture
-async def mock_db_manager():
+@pytest.fixture
+def mock_db_manager():
     """Mock the DBManager."""
     return AsyncMock()
 
 
-@pytest_asyncio.fixture
-async def mock_broker():
+@pytest.fixture
+def mock_broker():
     """Mock a broker."
     broker = AsyncMock()
     broker.is_order_filled.return_value = False
@@ -25,8 +25,8 @@ async def mock_broker():
     return broker
 
 
-@pytest_asyncio.fixture
-async def order_manager(mock_db_manager, mock_broker):
+@pytest.fixture
+def order_manager(mock_db_manager, mock_broker):
     """Create an instance of OrderManager with mocked dependencies."
     engine = MagicMock()
     brokers = {"dummy_broker": mock_broker}
