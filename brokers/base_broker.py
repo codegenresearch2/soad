@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.sql import and_
 from sqlalchemy import select
 from database.db_manager import DBManager
 from database.models import Trade, AccountInfo, Position, Balance
