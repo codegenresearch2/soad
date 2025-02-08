@@ -1,12 +1,13 @@
-from flask import Flask, jsonify, render_template, request, abort, request
+from flask import Flask, jsonify, render_template, request, abort
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo, Balance, Position
 import os
 from flask_cors import CORS
+import logging
 
 app = Flask('TradingAPI', template_folder='ui/templates')
-CORS(app)
+CORS(app, origins=['http://example.com'], supports_credentials=True)
 
 @app.route('/position_page')
 def positions():
@@ -123,7 +124,6 @@ def get_positions():
     except Exception as e:
         app.logger.error(f'Error fetching positions: {e}')
         return jsonify({'error': 'Failed to fetch positions'}), 500
-
 
 def create_app(engine):
     Session = sessionmaker(bind=engine)
