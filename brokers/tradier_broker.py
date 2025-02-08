@@ -9,8 +9,8 @@ class TradierBroker(BaseBroker):
         super().__init__(api_key, secret_key, 'Tradier', engine=engine, **kwargs)
         self.base_url = 'https://api.tradier.com/v1'
         self.headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Accept": "application/json"
+            "Authorization": f"Bearer {self.api_key}",
+            "Accept": "application/json"
         }
         self.order_timeout = 1
         self.auto_cancel_orders = True
@@ -44,11 +44,11 @@ class TradierBroker(BaseBroker):
                 self.account_type = 'cash'
                 buying_power = account_info['cash']['cash_available']
                 account_value = account_info['total_equity']
-            if account_info.get('margin'):
+            elif account_info.get('margin'):
                 self.account_type = 'margin'
                 buying_power = account_info['margin']['stock_buying_power']
                 account_value = account_info['total_equity']
-            if account_info.get('pdt'):
+            elif account_info.get('pdt'):
                 self.account_type = 'pdt'
                 buying_power = account_info['pdt']['stock_buying_power']
                 account_value = account_info['total_equity']
@@ -103,14 +103,15 @@ class TradierBroker(BaseBroker):
                 "price": price
             }
 
-            # TODO: fix/remove
             response = requests.post(f"{self.base_url}/accounts/{self.account_id}/orders", data=order_data, headers=self.headers)
+            response.raise_for_status()
             order_id = response.json()['order']['id']
             logger.info('Order placed', extra={'order_id': order_id})
             if self.auto_cancel_orders:
                 time.sleep(self.order_timeout)
                 order_status_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}"
                 status_response = requests.get(order_status_url, headers=self.headers)
+                status_response.raise_for_status()
                 order_status = status_response.json()['order']['status']
 
                 if order_status != 'filled':
@@ -137,7 +138,6 @@ class TradierBroker(BaseBroker):
     def _place_option_order(self, symbol, quantity, order_type, price=None):
         ticker = extract_underlying_symbol(symbol)
         logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
-        # Sane conversions
         if order_type == 'buy':
             order_type = 'buy_to_open'
         elif order_type == 'sell':
@@ -250,24 +250,3 @@ class TradierBroker(BaseBroker):
             return { 'bid': bid, 'ask': ask }
         except requests.RequestException as e:
             logger.error('Failed to retrieve bid/ask', extra={'error': str(e)})
-
-    def get_cost_basis(self, symbol):
-        logger.info(f'Retrieving cost basis for symbol {symbol} from Tradier')
-        try:
-            url = f"{self.base_url}/accounts/{self.account_id}/gainloss"
-            params = {
-                "symbol": symbol
-            }
-            response = requests.get(url, headers=self.headers, params=params)
-            response.raise_for_status()
-            gain_loss_data = response.json().get('gainloss')
-            if gain_loss_data:
-                cost_basis = gain_loss_data[0].get('cost_basis', None)  # Assuming first entry is for the symbol
-                logger.info(f"Cost basis for {symbol}: {cost_basis}")
-                return cost_basis
-            else:
-                logger.warning(f"No gain/loss data found for {symbol}")
-                return None
-        except requests.RequestException as e:
-            logger.error(f"Failed to retrieve cost basis for {symbol}: {str(e)}")
-            return None
