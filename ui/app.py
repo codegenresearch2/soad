@@ -35,8 +35,7 @@ def trades_per_strategy():
 
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 def historic_balance_per_strategy():
-    session = Session()
-    try:
+    with Session() as session:
         historical_balances = session.query(
             Balance.strategy,
             Balance.broker,
@@ -50,14 +49,12 @@ def historic_balance_per_strategy():
         historical_balances_serializable = []
         for strategy, broker, hour, total_balance in historical_balances:
             historical_balances_serializable.append({
-                'strategy': strategy,
-                'broker': broker,
-                'hour': hour,
-                'total_balance': total_balance
+                "strategy": strategy,
+                "broker": broker,
+                "hour": hour,
+                "total_balance": total_balance
             })
         return jsonify({'historic_balance_per_strategy': historical_balances_serializable})
-    finally:
-        session.close()
 
 @app.route('/account_values')
 def account_values():
@@ -76,11 +73,11 @@ def trade_success_rate():
         failed_trades = total_trades - successful_trades
 
         success_rate_by_strategy_and_broker.append({
-            'strategy': strategy,
-            'broker': broker,
-            'total_trades': total_trades,
-            'successful_trades': successful_trades,
-            'failed_trades': failed_trades
+            "strategy": strategy,
+            "broker": broker,
+            "total_trades": total_trades,
+            "successful_trades": successful_trades,
+            "failed_trades": failed_trades
         })
 
     return jsonify({'trade_success_rate': success_rate_by_strategy_and_broker})
@@ -101,12 +98,12 @@ def get_positions():
     positions_data = []
     for position, balance in positions:
         positions_data.append({
-            'broker': balance.broker,
-            'strategy': balance.strategy,
-            'symbol': position.symbol,
-            'quantity': position.quantity,
-            'latest_price': position.latest_price,
-            'timestamp': balance.timestamp
+            "broker": balance.broker,
+            "strategy": balance.strategy,
+            "symbol": position.symbol,
+            "quantity": position.quantity,
+            "latest_price": position.latest_price,
+            "timestamp": balance.timestamp
         })
 
     return jsonify({'positions': positions_data})
