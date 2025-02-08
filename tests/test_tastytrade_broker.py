@@ -7,30 +7,25 @@ class TestTastytradeBroker(unittest.TestCase):
     def setUp(self):
         self.broker = TastytradeBroker('api_key', 'secret_key')
 
-    def mock_connect(self, mock_post):
+    @patch('brokers.tastytrade_broker.requests.post')  
+    def test_connect(self, mock_post):
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {'data': {'session-token': 'token'}}
         mock_post.return_value = mock_response
 
-    @patch('brokers.tastytrade_broker.requests.post')  
-    def test_connect(self, mock_post):
-        self.mock_connect(mock_post)
-        try:
-            self.broker.connect()
-        except KeyError as e:
-            self.fail(f"Connect method failed with KeyError: {e}")
+        self.broker.connect()
         self.assertTrue(hasattr(self.broker, 'session_token'))
         self.assertTrue(hasattr(self.broker, 'headers'))
 
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
     def test_get_account_info(self, mock_post, mock_get):
-        self.mock_connect(mock_post)
         mock_response = MagicMock()
         mock_response.json.return_value = {
             'data': {'items': [{'account': {'account_number': '12345'}}]}
         }
+        mock_post.return_value = mock_response
         mock_get.return_value = mock_response
 
         self.broker.connect()
@@ -43,13 +38,12 @@ class TestTastytradeBroker(unittest.TestCase):
     @patch('brokers.tastytrade_broker.requests.post')
     @patch('brokers.tastytrade_broker.requests.get')
     def test_place_order(self, mock_get, mock_post):
-        self.mock_connect(mock_post)
+        mock_response = MagicMock()
+        mock_response.json.return_value = {'status': 'filled', 'filled_price': 155.00}
+        mock_post.return_value = mock_response
         mock_get.return_value = MagicMock(json=MagicMock(return_value={
             'data': {'items': [{'account': {'account_number': '12345'}}]}
         }))
-        mock_response = MagicMock()
-        mock_response.json.return_value = {'status': 'filled', 'filled_price': 155.00}
-        mock_post.side_effect = [mock_response]
 
         self.broker.connect()
         self.broker.get_account_info()
