@@ -3,6 +3,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo, Balance, Position
 from flask_cors import CORS
+import os
 
 app = Flask('TradingAPI', template_folder='ui/templates')
 CORS(app, origins=['http://localhost:3000'], supports_credentials=True)
@@ -12,7 +13,6 @@ def positions():
     try:
         return render_template('positions.html')
     except Exception as e:
-        app.logger.error(f'Error rendering positions.html: {e}')
         return 'Internal Server Error', 500
 
 @app.route('/')
@@ -20,7 +20,6 @@ def index():
     try:
         return render_template('index.html')
     except Exception as e:
-        app.logger.error(f'Error rendering index.html: {e}')
         return 'Internal Server Error', 500
 
 @app.route('/trades_per_strategy')
@@ -29,7 +28,7 @@ def trades_per_strategy():
     trades_count_serializable = [{'strategy': strategy, 'broker': broker, 'count': count} for strategy, broker, count in trades_count]
     return jsonify({'trades_per_strategy': trades_count_serializable})
 
-@app.route('/historic_balance_per_strategy')
+@app.route('/historic_balance_per_strategy', methods=['GET'])
 def historic_balance_per_strategy():
     try:
         historical_balances = app.session.query(
