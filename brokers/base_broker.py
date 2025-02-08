@@ -7,14 +7,14 @@ from datetime import datetime
 
 
 class BaseBroker(ABC):
-    def __init__(self, api_key, secret_key, broker_name, engine, prevent_day_trading=False):
+    def __init__(self, api_key, secret_key, broker_name, engine):
         self.api_key = api_key
         self.secret_key = secret_key
         self.broker_name = broker_name
         self.db_manager = DBManager(engine)
         self.Session = sessionmaker(bind=engine)
         self.account_id = None
-        self.prevent_day_trading = prevent_day_trading
+        self.prevent_day_trading = False
 
     @abstractmethod
     def connect(self):
@@ -52,17 +52,9 @@ class BaseBroker(ABC):
     def has_bought_today(self, symbol):
         today = datetime.now().date()
         with self.Session() as session:
-            trades = session.query(Trade).filter(
-                and_(
-                    Trade.symbol == symbol,
-                    Trade.broker == self.broker_name,
-                    Trade.order_type == 'buy',
-                    Trade.timestamp >= today
-                )
-            ).all()
-            return len(trades) > 0
+            trades = session.query(Trade).filter(                and_(                    Trade.symbol == symbol,                    Trade.broker == self.broker_name,                    Trade.order_type == 'buy',                    Trade.timestamp >= today                )            ).all()            return len(trades) > 0
 
-    def update_positions(self, session, trade, order_type):
+    def update_positions(self, session, trade):
         position = session.query(Position).filter_by(symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy).first()
 
         if trade.order_type == 'buy':
@@ -112,20 +104,6 @@ class BaseBroker(ABC):
         
         with self.Session() as session:
             session.add(trade)
-            session.commit()
-
-            balance = session.query(Balance).filter_by(broker=self.broker_name, strategy=strategy).first()
-            if not balance:
-                balance = Balance(
-                    broker=self.broker_name,
-                    strategy=strategy,
-                    initial_balance=0,
-                    total_balance=0,
-                    timestamp=datetime.now()
-                )
-                session.add(balance)
-
-            balance.total_balance += trade.executed_price * trade.quantity
             session.commit()
 
             # Update positions
