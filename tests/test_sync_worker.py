@@ -39,7 +39,7 @@ async def test_update_position_prices_and_volatility():
         mock_broker_service.get_cost_basis.assert_any_call(position.broker, position.symbol)
 
     # Assert that the session commit was called
-    assert mock_session.commit.called
+    mock_session.commit.assert_called_once()
 
 @pytest.fixture
 def broker_service():
