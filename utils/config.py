@@ -17,7 +17,6 @@ from strategies.simple_strategy import SimpleStrategy
 from .logger import logger
 
 # Mapping of broker types to their constructors
-# TODO: refactor
 BROKER_MAP = {
     'tradier': lambda config, engine: TradierBroker(
         api_key=os.environ.get('TRADIER_API_KEY', config.get('api_key')),
@@ -43,7 +42,6 @@ BROKER_MAP = {
         engine=engine
     )
 }
-
 
 # Mapping of strategy types to their constructors
 STRATEGY_MAP = {
@@ -103,18 +101,19 @@ def load_custom_strategy(broker, strategy_name, config):
         class_name = config['class_name']
         starting_capital = config['starting_capital']
         rebalance_interval_minutes = config['rebalance_interval_minutes']
-        execution_style = config.get('execution_style', '')
         strategy_class = load_strategy_class(file_path, class_name)
         logger.info(f"Initializing custom strategy '{class_name}' with config: {config}")
-        return strategy_class(broker, strategy_name, starting_capital, rebalance_interval_minutes, execution_style, **config.get('strategy_params', {}))
+        return strategy_class(broker, strategy_name, starting_capital, rebalance_interval_minutes, **config.get('strategy_params', {}))
     except Exception as e:
         logger.error(f"Error initializing custom strategy '{config['class_name']}': {e}")
         raise
+
 
 def parse_config(config_path):
     with open(config_path, 'r') as file:
         config = yaml.safe_load(file)
     return config
+
 
 def initialize_brokers(config):
     # Create a single database engine for all brokers
@@ -168,6 +167,7 @@ async def initialize_strategies(brokers, config):
         except Exception as e:
             logger.error(f"Error initializing strategy '{strategy_name}': {e}")
     return strategies
+
 
 def create_api_database_engine(config, local_testing=False):
     if local_testing:
