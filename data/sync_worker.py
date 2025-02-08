@@ -193,9 +193,7 @@ class BalanceService:
         return balance.balance if balance else 0
 
     async def _calculate_positions_balance(self, session, broker, strategy):
-        positions_result = await session.execute(
-            select(Position).filter_by(broker=broker, strategy=strategy)
-        )
+        positions_result = await session.execute(select(Position).filter_by(broker=broker, strategy=strategy))
         positions = positions_result.scalars().all()
 
         total_positions_value = 0
@@ -213,7 +211,7 @@ class BalanceService:
             strategy=strategy,
             type=balance_type,
             balance=balance_value,
-            timestamp=timestamp
+            timestamp=timestamp,
         )
         session.add(new_balance_record)
         logger.debug(f"Updated {balance_type} balance for strategy {strategy}: {balance_value}")
@@ -233,17 +231,6 @@ class BalanceService:
         categorized_balance_sum = await self._sum_all_strategy_balances(session, broker)
         return total_value, categorized_balance_sum
 
-    def _insert_uncategorized_balance(self, session, broker, uncategorized_balance, timestamp):
-        new_balance_record = Balance(
-            broker=broker,
-            strategy='uncategorized',
-            type='cash',
-            balance=uncategorized_balance,
-            timestamp=timestamp
-        )
-        session.add(new_balance_record)
-        logger.debug(f"Updated uncategorized balance for broker {broker}: {uncategorized_balance}")
-
     async def _sum_all_strategy_balances(self, session, broker):
         strategies = await self._get_strategies(session, broker)
         return await self._sum_each_strategy_balance(session, broker, strategies)
@@ -256,6 +243,17 @@ class BalanceService:
             logger.info(f"Strategy: {strategy}, Cash: {cash_balance}, Positions: {positions_balance}")
             total_balance += (cash_balance + positions_balance)
         return total_balance
+
+    def _insert_uncategorized_balance(self, session, broker, uncategorized_balance, timestamp):
+        new_balance_record = Balance(
+            broker=broker,
+            strategy='uncategorized',
+            type='cash',
+            balance=uncategorized_balance,
+            timestamp=timestamp,
+        )
+        session.add(new_balance_record)
+        logger.debug(f"Updated uncategorized balance for broker {broker}: {uncategorized_balance}")
 
 
 async def sync_worker(engine, brokers):
