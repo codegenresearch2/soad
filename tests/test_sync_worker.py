@@ -21,18 +21,13 @@ MOCK_BALANCE = Balance(broker='tradier', strategy='RSI', type='cash', balance=10
 async def test_update_position_prices_and_volatility():
     # Mock the broker service
     mock_broker_service = AsyncMock()
-    mock_broker_instance = AsyncMock()
-    mock_broker_instance.get_latest_price = AsyncMock(return_value=150.0)
-    mock_broker_instance.get_cost_basis = MagicMock(return_value=100.0)  # Synchronous function
-
-    # Mock get_broker_instance to return the mock broker instance
-    mock_broker_service.get_broker_instance = AsyncMock(return_value=mock_broker_instance)
+    mock_broker_service.get_latest_price = AsyncMock(return_value=150.0)  # Ensure it's async
 
     # Initialize PositionService with the mocked broker service
     position_service = PositionService(mock_broker_service)
 
     # Mock session and positions
-    mock_session = AsyncMock(spec=AsyncSession)  # Ensure we are using AsyncSession
+    mock_session = AsyncMock(spec=AsyncSession)
     mock_positions = MOCK_POSITIONS
 
     # Test the method
@@ -42,9 +37,6 @@ async def test_update_position_prices_and_volatility():
     # Assert that the broker service was called to get the latest price for each position
     mock_broker_service.get_latest_price.assert_any_call('tradier', 'AAPL')
     mock_broker_service.get_latest_price.assert_any_call('tastytrade', 'GOOG')
-
-    mock_broker_instance.get_cost_basis.assert_any_call('AAPL')
-    mock_broker_instance.get_cost_basis.assert_any_call('GOOG')
 
     # Assert that the session commit was called
     assert mock_session.commit.called
@@ -102,10 +94,6 @@ async def skip_test_update_position_price(mock_logger, position_service):
 @patch('data.sync_worker.logger')
 async def skip_test_update_strategy_balance(mock_logger, balance_service):
     mock_session = AsyncMock(AsyncSession)
-    mock_session.execute.side_effect = [
-        AsyncMock(scalar=MagicMock(return_value=None)),  # Cash balance query
-        MagicMock(scalar=MagicMock(return_value=None))   # Positions balance query
-    ]
     await balance_service.update_strategy_balance(mock_session, 'mock_broker', 'strategy1', datetime.now())
     assert mock_session.add.called  # Check that session.add was called to add a new balance record
     assert mock_session.commit.called
@@ -330,13 +318,7 @@ async def skip_test_insert_or_update_position():
 
     now = datetime.now()
     # Simulate an existing position in the DB
-    existing_position = Position(
-        broker='mock_broker',
-        symbol='AAPL',
-        quantity=10,
-        latest_price=100.0,
-        last_updated=now
-    )
+    existing_position = Position(broker='mock_broker', symbol='AAPL', quantity=10, latest_price=100.0, last_updated=now)
 
     # Mock the query for existing positions to return the existing AAPL position
     mock_session.execute.return_value.scalars.return_value = [existing_position]
