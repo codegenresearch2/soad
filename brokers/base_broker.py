@@ -5,11 +5,12 @@ from database.models import Trade, AccountInfo, Balance, Position
 from datetime import datetime, timedelta
 
 class BaseBroker(ABC):
-    def __init__(self, api_key, secret_key, broker_name, engine):
+    def __init__(self, api_key, secret_key, broker_name, engine, prevent_day_trading=False):
         self.api_key = api_key
         self.secret_key = secret_key
         self.broker_name = broker_name
         self.engine = engine
+        self.prevent_day_trading = prevent_day_trading
         self.db_manager = DBManager(engine)
         self.Session = sessionmaker(bind=engine)
         self.account_id = None
@@ -48,8 +49,10 @@ class BaseBroker(ABC):
         return account_info
 
     def place_order(self, symbol, quantity, order_type, strategy, price=None):
-        if order_type == 'buy' and self.has_bought_today(symbol):
-            raise ValueError(f'Cannot buy {symbol} today as a buy order has already been placed.')  # Enforce day trading restriction
+        if self.prevent_day_trading:
+            if order_type == 'buy':
+                if self.has_bought_today(symbol):
+                    raise ValueError(f'Cannot buy {symbol} today as a buy order has already been placed.')
 
         response = self._place_order(symbol, quantity, order_type, price)
         with self.Session() as session:
@@ -83,7 +86,7 @@ class BaseBroker(ABC):
             balance.total_balance += trade.executed_price * trade.quantity
             session.commit()
 
-            self.update_positions(session, balance.id, symbol, quantity, response['filled_price'])  # Corrected method call
+            self.update_positions(session, balance.id, symbol, quantity, response['filled_price'])
 
         return response
 
