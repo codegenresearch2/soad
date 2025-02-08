@@ -49,7 +49,10 @@ class TradierBroker(BaseBroker):
             account_value = account_info.get('total_equity', 0)
             cash = account_info.get('cash', 0)
 
-            logger.info('Account balances retrieved', extra={'account_type': self.account_type, 'buying_power': buying_power, 'value': account_value})
+            logger.info('Account balances retrieved',
+                        extra={'account_type': self.account_type,
+                              'buying_power': buying_power,
+                              'value': account_value})
             return {
                 'account_number': account_id,
                 'account_type': self.account_type,
@@ -123,10 +126,6 @@ class TradierBroker(BaseBroker):
             return data
         except requests.RequestException as e:
             logger.error('Failed to place order', extra={'error': str(e)})
-
-    def _place_future_option_order(self, symbol, quantity, order_type, price=None):
-        logger.error('Future options not supported by Tradier', extra={'symbol': symbol})
-        raise NotImplementedError
 
     def _place_option_order(self, symbol, quantity, order_type, price=None):
         ticker = extract_underlying_symbol(symbol)
