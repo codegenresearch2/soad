@@ -35,25 +35,26 @@ def trades_per_strategy():
 
 @app.route('/historic_balance_per_strategy')
 def historic_balance_per_strategy():
-    historical_balances = app.session.query(
-        Balance.strategy,
-        Balance.broker,
-        func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
-        Balance.total_balance,
-    ).group_by(
-        Balance.strategy, Balance.broker, 'hour'
-    ).order_by(
-        Balance.strategy, Balance.broker, 'hour'
-    ).all()
-    historical_balances_serializable = []
-    for strategy, broker, hour, total_balance in historical_balances:
-        historical_balances_serializable.append({
-            'strategy': strategy,
-            'broker': broker,
-            'hour': hour,
-            'total_balance': total_balance
-        })
-    return jsonify({'historic_balance_per_strategy': historical_balances_serializable})
+    with Session() as session:
+        historical_balances = session.query(
+            Balance.strategy,
+            Balance.broker,
+            func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
+            Balance.total_balance,
+        ).group_by(
+            Balance.strategy, Balance.broker, 'hour'
+        ).order_by(
+            Balance.strategy, Balance.broker, 'hour'
+        ).all()
+        historical_balances_serializable = []
+        for strategy, broker, hour, total_balance in historical_balances:
+            historical_balances_serializable.append({
+                'strategy': strategy,
+                'broker': broker,
+                'hour': hour,
+                'total_balance': total_balance
+            })
+        return jsonify({'historic_balance_per_strategy': historical_balances_serializable})
 
 @app.route('/account_values')
 def account_values():
@@ -107,5 +108,8 @@ def get_positions():
 
     return jsonify({'positions': positions_data})
 
-def create_app():
+# Static files are served automatically from the 'static' folder
+
+def create_app(engine):
+    app.session = Session(bind=engine)
     return app
