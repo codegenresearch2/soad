@@ -35,7 +35,7 @@ def trades_per_strategy():
 
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 def historic_balance_per_strategy():
-    with Session() as session:
+    with app.session() as session:
         try:
             historical_balances = session.query(
                 Balance.strategy,
