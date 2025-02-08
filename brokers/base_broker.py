@@ -46,7 +46,8 @@ class BaseBroker(ABC):
 
     def get_account_info(self):
         account_info = self._get_account_info()
-        self.db_manager.add_account_info(AccountInfo(broker=self.broker_name, value=account_info['value']))        return account_info
+        self.db_manager.add_account_info(AccountInfo(broker=self.broker_name, value=account_info['value']))
+        return account_info
 
     def has_bought_today(self, symbol):
         today = datetime.now().date()
