@@ -14,13 +14,12 @@ class TestTradierBroker(unittest.TestCase):
         mock_post.return_value = mock_response
 
     @patch('brokers.tradier_broker.requests.post') as mock_post:
-        def test_connect(self):
-            self.mock_connect(mock_post)
-            self.broker.connect()
-            self.assertTrue(hasattr(self.broker, 'headers'))
+        @patch('brokers.tradier_broker.requests.get') as mock_get:
+            def test_connect(self):
+                self.mock_connect(mock_post)
+                self.broker.connect()
+                self.assertTrue(hasattr(self.broker, 'headers'))
 
-    @patch('brokers.tradier_broker.requests.get') as mock_get:
-        @patch('brokers.tradier_broker.requests.post') as mock_post:
             def test_get_account_info(self):
                 self.mock_connect(mock_post)
                 mock_response = MagicMock()
@@ -32,27 +31,23 @@ class TestTradierBroker(unittest.TestCase):
                 self.assertEqual(account_info, {'profile': {'account': {'account_number': '12345'}}})
                 self.assertEqual(self.broker.account_id, '12345')
 
-    @patch('brokers.tradier_broker.requests.post') as mock_post_place_order:
-        @patch('brokers.tradier_broker.requests.get') as mock_get_account_info:
-            @patch('brokers.tradier_broker.requests.post') as mock_post_connect:
-                def test_place_order(self):
-                    self.mock_connect(mock_post_connect)
-                    mock_get_account_info.return_value = MagicMock(json=MagicMock(return_value={
-                        'profile': {'account': {'account_number': '12345'}}
-                    }))
-                    mock_response = MagicMock()
-                    mock_response.json.return_value = {'status': 'filled', 'filled_price': 155.00}
-                    mock_post_place_order.side_effect = [mock_post_connect.return_value, mock_response]
+            def test_place_order(self):
+                self.mock_connect(mock_post)
+                mock_get_account_info = MagicMock()
+                mock_get_account_info.return_value = MagicMock(json=MagicMock(return_value={
+                    'profile': {'account': {'account_number': '12345'}}
+                }))
+                mock_response = MagicMock()
+                mock_response.json.return_value = {'status': 'filled', 'filled_price': 155.00}
+                mock_post.side_effect = [mock_post.return_value, mock_response]
 
-                    self.broker.connect()
-                    self.broker.get_account_info()
-                    order_info = self.broker.place_order('AAPL', 10, 'buy', 'example_strategy', 150.00)
-                    self.assertEqual(order_info, {'status': 'filled', 'filled_price': 155.00})
+                self.broker.connect()
+                self.broker.get_account_info()
+                order_info = self.broker.place_order('AAPL', 10, 'buy', 'example_strategy', 150.00)
+                self.assertEqual(order_info, {'status': 'filled', 'filled_price': 155.00})
 
-    @patch('brokers.tradier_broker.requests.get') as mock_get:
-        @patch('brokers.tradier_broker.requests.post') as mock_post_connect:
             def test_get_order_status(self):
-                self.mock_connect(mock_post_connect)
+                self.mock_connect(mock_post)
                 mock_response = MagicMock()
                 mock_response.json.return_value = {'status': 'completed'}
                 mock_get.return_value = mock_response
@@ -61,10 +56,8 @@ class TestTradierBroker(unittest.TestCase):
                 order_status = self.broker.get_order_status('order_id')
                 self.assertEqual(order_status, {'status': 'completed'})
 
-    @patch('brokers.tradier_broker.requests.delete') as mock_delete:
-        @patch('brokers.tradier_broker.requests.post') as mock_post_connect:
             def test_cancel_order(self):
-                self.mock_connect(mock_post_connect)
+                self.mock_connect(mock_post)
                 mock_response = MagicMock()
                 mock_response.json.return_value = {'status': 'cancelled'}
                 mock_delete.return_value = mock_response
@@ -73,10 +66,8 @@ class TestTradierBroker(unittest.TestCase):
                 cancel_status = self.broker.cancel_order('order_id')
                 self.assertEqual(cancel_status, {'status': 'cancelled'})
 
-    @patch('brokers.tradier_broker.requests.get') as mock_get:
-        @patch('brokers.tradier_broker.requests.post') as mock_post_connect:
             def test_get_options_chain(self):
-                self.mock_connect(mock_post_connect)
+                self.mock_connect(mock_post)
                 mock_response = MagicMock()
                 mock_response.json.return_value = {'options': 'chain'}
                 mock_get.return_value = mock_response
