@@ -30,10 +30,10 @@ class AccountInfo(Base):
 
 class Balance(Base):
     __tablename__ = 'balances'
-    id = Column(Integer, primary_key=True)
-    broker = Column(String)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    broker = Column(String, nullable=False)
     strategy = Column(String, nullable=False)
-    type = Column(String, default='cash')
+    type = Column(String, default='cash', nullable=False)
     balance = Column(Float, default=0.0)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
     trades = relationship('Trade', backref='balance')
