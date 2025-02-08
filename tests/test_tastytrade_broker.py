@@ -9,10 +9,11 @@ class TestTastytradeBroker(unittest.TestCase):
 
     def mock_connect(self, mock_post):
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.json.return_value = {'data': {'session-token': 'token'}}
         mock_post.return_value = mock_response
 
-    @patch('brokers.tastytrade_broker.requests.post')
+    @patch('brokers.tastytrade_broker.requests.post')  
     def test_connect(self, mock_post):
         self.mock_connect(mock_post)
         self.broker.connect()
