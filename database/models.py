@@ -56,8 +56,10 @@ class Position(Base):
 
 
 def drop_then_init_db(engine):
-    Base.metadata.drop_all(engine)  # Create new tables
-    Base.metadata.create_all(engine)  # Create new tables
+    # Drop existing tables
+    Base.metadata.drop_all(engine)
+    # Create new tables
+    Base.metadata.create_all(engine)
 
 
 def init_db(engine):
