@@ -3,7 +3,6 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo, Balance, Position
 from flask_cors import CORS
-import os
 
 app = Flask('TradingAPI', template_folder='ui/templates')
 CORS(app, origins=['http://localhost:3000'], supports_credentials=True)
