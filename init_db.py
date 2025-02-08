@@ -13,7 +13,6 @@ session = Session()
 drop_then_init_db(engine)
 
 # Define constants
-NUM_TRADES_PER_HOUR = 1
 BROKERS = ['E*TRADE', 'Tradier', 'Tastytrade']
 STRATEGIES = ['SMA', 'EMA', 'RSI', 'Bollinger Bands', 'MACD', 'VWAP', 'Ichimoku']
 START_DATE = datetime.utcnow() - timedelta(days=5)
