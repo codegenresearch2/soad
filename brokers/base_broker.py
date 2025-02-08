@@ -84,9 +84,11 @@ class BaseBroker(ABC):
         if not trade:
             return
 
-        executed_price = order_info.get('filled_price', trade.price)  # Use 'filled_price' instead of 'executed_price'
+        executed_price = order_info.get('filled_price', trade.price)
+        if executed_price is None:
+            executed_price = trade.price
         profit_loss = self.db_manager.calculate_profit_loss(trade)
-        success = 'success' if profit_loss > 0 else 'failure'  # Ensure consistency in success status determination
+        success = 'success' if profit_loss > 0 else 'failure'
 
         trade.executed_price = executed_price
         trade.success = success
