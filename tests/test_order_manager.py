@@ -11,14 +11,14 @@ PEGGED_ORDER_CANCEL_AFTER = 15  # 15 seconds
 
 
 @pytest_asyncio.fixture
-def mock_db_manager():
+async def mock_db_manager():
     """Mock the DBManager."""
     return AsyncMock()
 
 
 @pytest_asyncio.fixture
-def mock_broker():
-    """Mock a broker."""
+async def mock_broker():
+    """Mock a broker."
     broker = AsyncMock()
     broker.is_order_filled.return_value = False
     broker.update_positions.return_value = None
@@ -26,8 +26,8 @@ def mock_broker():
 
 
 @pytest_asyncio.fixture
-def order_manager(mock_db_manager, mock_broker):
-    """Create an instance of OrderManager with mocked dependencies."""
+async def order_manager(mock_db_manager, mock_broker):
+    """Create an instance of OrderManager with mocked dependencies."
     engine = MagicMock()
     brokers = {"dummy_broker": mock_broker}
     order_manager = OrderManager(engine, brokers)
@@ -56,11 +56,13 @@ async def test_reconcile_orders(order_manager, mock_db_manager):
 @pytest.mark.asyncio
 async def test_reconcile_order_stale(order_manager, mock_db_manager, mock_broker):
     """Test the reconcile_order method for stale orders."""
+    # Set the timestamp for the stale order to be three days old
+    stale_threshold = datetime.utcnow() - timedelta(days=3)
     stale_order = Trade(
         id=1,
         broker="dummy_broker",
         broker_id=None,
-        timestamp=datetime.utcnow() - timedelta(seconds=MARK_ORDER_STALE_AFTER),
+        timestamp=stale_threshold,
         status="open",
     )
 
