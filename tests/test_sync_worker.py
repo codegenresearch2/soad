@@ -34,12 +34,9 @@ async def test_update_position_prices_and_volatility():
     await position_service.update_position_prices_and_volatility(mock_session, mock_positions, timestamp)
 
     # Assert that the broker service was called to get the latest price for each position
-    mock_broker_service.get_latest_price.assert_any_call('tradier', 'AAPL')
-    mock_broker_service.get_latest_price.assert_any_call('tastytrade', 'GOOG')
-
-    # Assert that the broker service was called to get the cost basis for each position
-    mock_broker_service.get_cost_basis.assert_any_call('tradier', 'AAPL')
-    mock_broker_service.get_cost_basis.assert_any_call('tastytrade', 'GOOG')
+    for position in mock_positions:
+        mock_broker_service.get_latest_price.assert_any_call(position.broker, position.symbol)
+        mock_broker_service.get_cost_basis.assert_any_call(position.broker, position.symbol)
 
     # Assert that the session commit was called
     assert mock_session.commit.called
