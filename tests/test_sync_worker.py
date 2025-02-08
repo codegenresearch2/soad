@@ -20,6 +20,7 @@ async def test_update_position_prices_and_volatility():
     # Mock the broker service
     mock_broker_service = AsyncMock()
     mock_broker_service.get_latest_price = AsyncMock(return_value=150.0)  # Ensure it's async
+    mock_broker_service.get_cost_basis = AsyncMock(return_value=100.0)  # Ensure it's async
 
     # Initialize PositionService with the mocked broker service
     position_service = PositionService(mock_broker_service)
@@ -35,6 +36,10 @@ async def test_update_position_prices_and_volatility():
     # Assert that the broker service was called to get the latest price for each position
     mock_broker_service.get_latest_price.assert_any_call('tradier', 'AAPL')
     mock_broker_service.get_latest_price.assert_any_call('tastytrade', 'GOOG')
+
+    # Assert that the broker service was called to get the cost basis for each position
+    mock_broker_service.get_cost_basis.assert_any_call('tradier', 'AAPL')
+    mock_broker_service.get_cost_basis.assert_any_call('tastytrade', 'GOOG')
 
     # Assert that the session commit was called
     assert mock_session.commit.called
@@ -75,12 +80,13 @@ async def test_update_position_price(mock_logger, position_service):
     mock_session = AsyncMock(spec=AsyncSession)
     mock_position = Position(symbol='AAPL', broker='mock_broker', quantity=10)
     position_service.broker_service.get_latest_price = AsyncMock(return_value=150)
+    position_service.broker_service.get_cost_basis = AsyncMock(return_value=100)
     position_service._get_underlying_symbol = MagicMock(return_value='AAPL')
     position_service._calculate_historical_volatility = AsyncMock(return_value=0.2)
     await position_service._update_position_price(mock_session, mock_position, datetime.now())
     assert mock_position.latest_price == 150
     assert mock_position.underlying_volatility == 0.2
-    assert mock_session.commit.called
+    mock_session.commit.assert_called_once()
 
 @pytest.mark.asyncio
 @patch('data.sync_worker.logger')
@@ -88,7 +94,7 @@ async def test_update_strategy_balance(mock_logger, balance_service):
     mock_session = AsyncMock(spec=AsyncSession)
     await balance_service.update_strategy_balance(mock_session, 'mock_broker', 'strategy1', datetime.now())
     assert mock_session.add.called  # Check that session.add was called to add a new balance record
-    assert mock_session.commit.called
+    mock_session.commit.assert_called_once()
 
 @pytest.mark.asyncio
 @patch('data.sync_worker.logger')
@@ -98,4 +104,4 @@ async def test_update_uncategorized_balances(mock_logger, balance_service):
     balance_service._sum_all_strategy_balances = AsyncMock(return_value=800)
     await balance_service.update_uncategorized_balances(mock_session, 'mock_broker', datetime.now())
     assert mock_session.add.called  # Check that a new balance record was added
-    assert mock_session.commit.called  # Ensure the session was committed
+    mock_session.commit.assert_called_once()  # Ensure the session was committed
