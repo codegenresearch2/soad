@@ -12,9 +12,9 @@ class BaseStrategy(ABC):
 
     def initialize_starting_balance(self):
         account_info = self.broker.get_account_info()
-        buying_power = account_info.get('buying_power')
+        cash_balance = account_info.get('cash_available')
 
-        if buying_power < self.starting_capital:
+        if cash_balance < self.starting_capital:
             raise ValueError("Not enough cash available to initialize the strategy with the desired starting capital.")
 
         with self.broker.Session() as session:
@@ -25,11 +25,4 @@ class BaseStrategy(ABC):
             ).first()
 
             if strategy_balance is None:
-                strategy_balance = Balance(
-                    strategy=self.strategy_name,
-                    broker=self.broker.broker_name,
-                    type='cash',
-                    balance=self.starting_capital
-                )
-                session.add(strategy_balance)
-                session.commit()
+                raise ValueError(f"Strategy balance not initialized for {self.strategy_name} strategy on {self.broker}.")
