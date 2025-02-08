@@ -24,7 +24,7 @@ class ConstantPercentageStrategy(BaseStrategy):
             if balance is None:
                 raise ValueError(f'Strategy balance not initialized for {self.strategy_name} strategy on {self.broker}.')
 
-            total_balance = balance.total_balance  # Ensure correct attribute name
+            total_balance = balance.balance  # Ensure correct attribute name
 
         target_cash_balance = total_balance * self.cash_percentage
         target_investment_balance = total_balance - target_cash_balance
