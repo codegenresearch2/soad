@@ -40,7 +40,7 @@ class TastytradeBroker(BaseBroker):
         formatted_symbol = f"{underlying:<6}{rest_of_symbol}"
         return formatted_symbol
 
-    def get_option_chain(self, underlying_symbol):
+    async def get_option_chain(self, underlying_symbol):
         """Fetch the option chain for a given underlying symbol."""
         try:
             option_chain = await NestedOptionChain.get(self.session, underlying_symbol)
