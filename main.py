@@ -42,11 +42,11 @@ def start_api_server(config_path=None):
         # Initialize the brokers
         brokers = initialize_brokers(config)
     app = create_app(engine)
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=True)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run trading strategies or start API server based on YAML configuration.")
+    parser = argparse.ArgumentParser(description='Run trading strategies or start API server based on YAML configuration.')
     parser.add_argument('--mode', choices=['trade', 'api'], required=True, help='Mode to run the system in: "trade" or "api"')
     parser.add_argument('--config', type=str, help='Path to the YAML configuration file.')
     args = parser.parse_args()
