@@ -30,7 +30,7 @@ class AccountInfo(Base):
 
 class Balance(Base):
     __tablename__ = 'balances'
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True)
     broker = Column(String)
     strategy = Column(String, nullable=False)
     type = Column(String, default='cash')
