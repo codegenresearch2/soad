@@ -1,5 +1,6 @@
 import unittest
 from datetime import datetime
+from unittest.mock import patch, MagicMock
 from database.models import Trade, Balance
 from .base_test import BaseTest
 from brokers.base_broker import BaseBroker
@@ -28,7 +29,7 @@ class MockBroker(BaseBroker):
 
     def execute_trade(self, session, trade_data):
         # Ensure the trade data is valid
-        if 'symbol' not in trade_data or 'quantity' not in trade_data or 'price' not in trade_data or 'executed_price' not in trade_data or 'order_type' not in trade_data or 'status' not in trade_data or 'timestamp' not in trade_data or 'broker' not in trade_data or 'strategy' not in trade_data or 'profit_loss' not in trade_data or 'success' not in trade_data:
+        if 'symbol' not in trade_data or 'quantity' not in trade_data or 'executed_price' not in trade_data or 'order_type' not in trade_data or 'status' not in trade_data or 'timestamp' not in trade_data or 'broker' not in trade_data or 'strategy' not in trade_data or 'profit_loss' not in trade_data or 'success' not in trade_data:
             raise ValueError('Invalid trade data')
 
         # Place the order
@@ -71,12 +72,12 @@ class TestTrading(BaseTest):
         self.session.add_all(additional_fake_trades)
         self.session.commit()
 
-    def test_execute_trade(self):
+    @patch('brokers.base_broker.BaseBroker.execute_trade')
+    def test_execute_trade(self, mock_execute_trade):
         # Example trade data
         trade_data = {
             'symbol': 'AAPL',
             'quantity': 10,
-            'price': 150.0,
             'executed_price': 151.0,
             'order_type': 'buy',
             'status': 'executed',
@@ -86,6 +87,9 @@ class TestTrading(BaseTest):
             'profit_loss': 10.0,
             'success': 'yes'
         }
+
+        # Mock the execute_trade method
+        mock_execute_trade.side_effect = MockBroker().execute_trade
 
         # Execute the trade
         broker = MockBroker('api_key', 'secret_key', 'E*TRADE', engine=self.engine)
