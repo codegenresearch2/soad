@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, PrimaryKeyConstraint
 from sqlalchemy.orm import sessionmaker
 from database.models import Trade, AccountInfo, Balance, Position, drop_then_init_db
 from datetime import datetime, timedelta
@@ -16,8 +16,8 @@ drop_then_init_db(engine)
 BROKERS = ['E*TRADE', 'Tradier', 'Tastytrade']
 STRATEGIES = ['SMA', 'EMA', 'RSI', 'Bollinger Bands', 'MACD', 'VWAP', 'Ichimoku']
 
-# Generate unique hourly timestamps for the past 5 days
-START_DATE = datetime.utcnow() - timedelta(days=5)
+# Generate unique hourly timestamps for the past 30 days
+START_DATE = datetime.utcnow() - timedelta(days=30)
 END_DATE = datetime.utcnow()
 TIMESTAMPS = [START_DATE + timedelta(hours=i) for i in range((END_DATE - START_DATE).days * 24)]
 
@@ -65,7 +65,7 @@ for broker in BROKERS:
             )
             session.add(cash_balance_record)
             session.commit()
-            CASH_BALANCE = random.uniform(5000, 20000)
+            CASH_BALANCE += random.uniform(-1000, 1000)  # Update cash balance based on profit/loss
 
             position_balance_record = Balance(
                 broker=broker,
@@ -76,7 +76,7 @@ for broker in BROKERS:
             )
             session.add(position_balance_record)
             session.commit()
-            POSITION_BALANCE = random.uniform(5000, 20000)
+            POSITION_BALANCE += random.uniform(-1000, 1000)  # Update position balance based on profit/loss
 
             # Generate and insert fake positions for each balance record
             for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
