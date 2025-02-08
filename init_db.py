@@ -51,10 +51,10 @@ print("Fake trades inserted into the database.")  # Use f-string for formatted s
 
 # Generate and insert fake balance data and positions
 print("Generating and inserting fake balance data and positions...")  # Use f-string for formatted strings
-cash_balance = random.uniform(5000, 20000)
-position_balance = random.uniform(5000, 20000)
 for broker in BROKERS:
     for strategy in STRATEGIES:
+        cash_balance = random.uniform(5000, 20000)
+        position_balance = random.uniform(5000, 20000)
         for timestamp in TIMESTAMPS:
             cash_balance_record = Balance(
                 broker=broker,
@@ -64,7 +64,6 @@ for broker in BROKERS:
                 timestamp=timestamp
             )
             session.add(cash_balance_record)
-            session.commit()
             cash_balance += random.uniform(-1000, 1000)  # Update cash balance based on profit/loss
 
             position_balance_record = Balance(
@@ -75,7 +74,6 @@ for broker in BROKERS:
                 timestamp=timestamp
             )
             session.add(position_balance_record)
-            session.commit()
             position_balance += random.uniform(-1000, 1000)  # Update position balance based on profit/loss
 
             # Generate and insert fake positions for each balance record
