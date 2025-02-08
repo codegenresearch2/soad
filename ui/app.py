@@ -29,7 +29,7 @@ def trades_per_strategy():
     trades_count_serializable = [{'strategy': strategy, 'broker': broker, 'count': count} for strategy, broker, count in trades_count]
     return jsonify({'trades_per_strategy': trades_count_serializable})
 
-@app.route('/historic_balance_per_strategy', methods=['GET'])
+@app.route('/historic_balance_per_strategy')
 def historic_balance_per_strategy():
     try:
         historical_balances = app.session.query(
@@ -80,7 +80,7 @@ def trade_success_rate():
 
     return jsonify({'trade_success_rate': success_rate_by_strategy_and_broker})
 
-@app.route('/positions', methods=['GET'])
+@app.route('/positions')
 def get_positions():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
