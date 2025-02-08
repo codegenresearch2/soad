@@ -15,7 +15,7 @@ class BaseStrategy(ABC):
         buying_power = account_info.get('buying_power')
 
         if buying_power < self.starting_capital:
-            raise ValueError('Not enough cash available...')
+            raise ValueError('Not enough buying power available to initialize the strategy with the desired starting capital.')
 
         with self.broker.Session() as session:
             strategy_balance = session.query(Balance).filter_by(
