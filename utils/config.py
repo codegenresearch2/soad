@@ -48,18 +48,13 @@ def parse_config(config_path):
         config = yaml.safe_load(file)
     return config
 
+# Create a single database engine for all brokers
 def initialize_brokers(config):
-    # Create a single database engine for all brokers
-    if 'database' in config and 'url' in config['database']:
-        engine = create_engine(config['database']['url'])
-    else:
-        engine = create_engine('sqlite:///default_trading_system.db')
-    
+    engine = create_engine(config['database']['url'] if 'database' in config and 'url' in config['database'] else 'sqlite:///default_trading_system.db')
     brokers = {}
     for broker_name, broker_config in config['brokers'].items():
         # Initialize the broker with the shared engine and prevent_day_trading parameter
         brokers[broker_name] = BROKER_MAP[broker_name](broker_config, engine)
-    
     return brokers
 
 def initialize_strategies(brokers, config):
