@@ -26,7 +26,7 @@ class TradierBroker(BaseBroker):
     def _get_account_info(self):
         logger.info('Retrieving account information')
         try:
-            response = requests.get("https://api.tradier.com/v1/user/profile", headers=self.headers)
+            response = requests.get(self.base_url + '/user/profile', headers=self.headers)
             response.raise_for_status()
             account_info = response.json()
             account_id = account_info.get('profile', {}).get('account', {}).get('account_number')
@@ -36,7 +36,7 @@ class TradierBroker(BaseBroker):
             self.account_id = account_id
             logger.info('Account info retrieved', extra={'account_id': self.account_id})
 
-            url = f'{self.base_url}/accounts/{self.account_id}/balances'
+            url = self.base_url + '/accounts/' + self.account_id + '/balances'
             response = requests.get(url, headers=self.headers)
             response.raise_for_status()
             account_info = response.json().get('balances', {})
@@ -45,9 +45,22 @@ class TradierBroker(BaseBroker):
                 logger.error('Invalid account info response')
                 return
 
-            self.account_type = account_info.get('account_type', 'unknown')
-            buying_power = account_info.get('buying_power', 0)
-            account_value = account_info.get('total_equity', 0)
+            if account_info.get('cash'):
+                self.account_type = 'cash'
+                buying_power = account_info.get('cash', {}).get('cash_available', 0)
+                account_value = account_info.get('total_equity', 0)
+            elif account_info.get('margin'):
+                self.account_type = 'margin'
+                buying_power = account_info.get('margin', {}).get('stock_buying_power', 0)
+                account_value = account_info.get('total_equity', 0)
+            elif account_info.get('pdt'):
+                self.account_type = 'pdt'
+                buying_power = account_info.get('pdt', {}).get('stock_buying_power', 0)
+                account_value = account_info.get('total_equity', 0)
+            else:
+                logger.error('Unknown account type')
+                return
+
             cash = account_info.get('cash', 0)
 
             logger.info('Account balances retrieved',
@@ -67,7 +80,7 @@ class TradierBroker(BaseBroker):
 
     def get_positions(self):
         logger.info('Retrieving positions')
-        url = f"{self.base_url}/accounts/{self.account_id}/positions"
+        url = self.base_url + "/accounts/" + self.account_id + "/positions"
         try:
             response = requests.get(url, headers=self.headers)
             response.raise_for_status()
@@ -82,7 +95,7 @@ class TradierBroker(BaseBroker):
         logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
         try:
             if price is None:
-                quote_url = f"https://api.tradier.com/v1/markets/quotes?symbols={symbol}"
+                quote_url = self.base_url + "/markets/quotes?symbols=" + symbol
                 quote_response = requests.get(quote_url, headers=self.headers)
                 quote_response.raise_for_status()
                 quote = quote_response.json().get('quotes', {}).get('quote', {})
@@ -100,20 +113,20 @@ class TradierBroker(BaseBroker):
                 "price": price
             }
 
-            response = requests.post(f"{self.base_url}/accounts/{self.account_id}/orders", data=order_data, headers=self.headers)
+            response = requests.post(self.base_url + "/accounts/" + self.account_id + "/orders", data=order_data, headers=self.headers)
             response.raise_for_status()
             order_id = response.json().get('order', {}).get('id')
             logger.info('Order placed', extra={'order_id': order_id})
             if self.auto_cancel_orders:
                 time.sleep(self.order_timeout)
-                order_status_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}"
+                order_status_url = self.base_url + "/accounts/" + self.account_id + "/orders/" + order_id
                 status_response = requests.get(order_status_url, headers=self.headers)
                 status_response.raise_for_status()
                 order_status = status_response.json().get('order', {}).get('status')
 
                 if order_status != 'filled':
                     try:
-                        cancel_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}/cancel"
+                        cancel_url = self.base_url + "/accounts/" + self.account_id + "/orders/" + order_id + "/cancel"
                         cancel_response = requests.put(cancel_url, headers=self.headers)
                         cancel_response.raise_for_status()
                         logger.info('Order cancelled', extra={'order_id': order_id})
@@ -137,7 +150,7 @@ class TradierBroker(BaseBroker):
             order_type = 'sell_to_close'
         try:
             if price is None:
-                quote_url = f"https://api.tradier.com/v1/markets/quotes?symbols={symbol}"
+                quote_url = self.base_url + "/markets/quotes?symbols=" + symbol
                 quote_response = requests.get(quote_url, headers=self.headers)
                 quote_response.raise_for_status()
                 quote = quote_response.json().get('quotes', {}).get('quote', {})
@@ -156,7 +169,7 @@ class TradierBroker(BaseBroker):
                 "price": price
             }
 
-            response = requests.post(f"{self.base_url}/accounts/{self.account_id}/orders", data=order_data, headers=self.headers)
+            response = requests.post(self.base_url + "/accounts/" + self.account_id + "/orders", data=order_data, headers=self.headers)
             response.raise_for_status()
 
             order_id = response.json().get('order', {}).get('id')
@@ -164,14 +177,14 @@ class TradierBroker(BaseBroker):
 
             if self.auto_cancel_orders:
                 time.sleep(self.order_timeout)
-                order_status_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}"
+                order_status_url = self.base_url + "/accounts/" + self.account_id + "/orders/" + order_id
                 status_response = requests.get(order_status_url, headers=self.headers)
                 status_response.raise_for_status()
                 order_status = status_response.json().get('order', {}).get('status')
 
                 if order_status != 'filled':
                     try:
-                        cancel_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}/cancel"
+                        cancel_url = self.base_url + "/accounts/" + self.account_id + "/orders/" + order_id + "/cancel"
                         cancel_response = requests.put(cancel_url, headers=self.headers)
                         cancel_response.raise_for_status()
                         logger.info('Order cancelled', extra={'order_id': order_id})
@@ -190,7 +203,7 @@ class TradierBroker(BaseBroker):
     def _get_order_status(self, order_id):
         logger.info('Retrieving order status', extra={'order_id': order_id})
         try:
-            response = requests.get(f"{self.base_url}/accounts/orders/{order_id}", headers=self.headers)
+            response = requests.get(self.base_url + "/accounts/orders/" + order_id, headers=self.headers)
             response.raise_for_status()
             order_status = response.json()
             logger.info('Order status retrieved', extra={'order_status': order_status})
@@ -201,7 +214,7 @@ class TradierBroker(BaseBroker):
     def _cancel_order(self, order_id):
         logger.info('Cancelling order', extra={'order_id': order_id})
         try:
-            response = requests.delete(f"{self.base_url}/accounts/orders/{order_id}", headers=self.headers)
+            response = requests.delete(self.base_url + "/accounts/orders/" + order_id, headers=self.headers)
             response.raise_for_status()
             cancellation_response = response.json()
             logger.info('Order cancelled successfully', extra={'cancellation_response': cancellation_response})
@@ -212,7 +225,7 @@ class TradierBroker(BaseBroker):
     def _get_options_chain(self, symbol, expiration_date):
         logger.info('Retrieving options chain', extra={'symbol': symbol, 'expiration_date': expiration_date})
         try:
-            response = requests.get(f"{self.base_url}/markets/options/chains?symbol={symbol}&expiration={expiration_date}", headers=self.headers)
+            response = requests.get(self.base_url + "/markets/options/chains?symbol=" + symbol + "&expiration=" + expiration_date, headers=self.headers)
             response.raise_for_status()
             options_chain = response.json()
             logger.info('Options chain retrieved', extra={'options_chain': options_chain})
@@ -223,7 +236,7 @@ class TradierBroker(BaseBroker):
     def get_current_price(self, symbol):
         logger.info('Retrieving current price', extra={'symbol': symbol})
         try:
-            response = requests.get(f"{self.base_url}/markets/quotes?symbols={symbol}", headers=self.headers)
+            response = requests.get(self.base_url + "/markets/quotes?symbols=" + symbol, headers=self.headers)
             response.raise_for_status()
             last_price = response.json().get('quotes', {}).get('quote', {}).get('last', 0)
             logger.info('Current price retrieved', extra={'symbol': symbol, 'last_price': last_price})
@@ -234,7 +247,7 @@ class TradierBroker(BaseBroker):
     def get_bid_ask(self, symbol):
         logger.info('Retrieving bid/ask', extra={'symbol': symbol})
         try:
-            response = requests.get(f"{self.base_url}/markets/quotes?symbols={symbol}", headers=self.headers)
+            response = requests.get(self.base_url + "/markets/quotes?symbols=" + symbol, headers=self.headers)
             response.raise_for_status()
             quote = response.json().get('quotes', {}).get('quote', {})
             bid = quote.get('bid', 0)
