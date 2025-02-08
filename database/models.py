@@ -22,6 +22,10 @@ class Trade(Base):
     success = Column(String, nullable=True)
     balance_id = Column(Integer, ForeignKey('balances.id'))
 
+    def prevent_day_trading(self):
+        # Implement day trading prevention logic
+        pass
+
 class AccountInfo(Base):
     __tablename__ = 'account_info'
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -37,26 +41,28 @@ class Balance(Base):
     total_balance = Column(Float, default=0.0)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
     trades = relationship('Trade', backref='balance')
-    positions = relationship("Position", back_populates="balance")
+    positions = relationship('Position', back_populates='balance')
+
+    def update_position(self, symbol, quantity, latest_price):
+        # Implement position update logic
+        pass
 
 class Position(Base):
     __tablename__ = 'positions'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     balance_id = Column(Integer, ForeignKey('balances.id'), nullable=False)
-    strategy = Column(String)
-    broker = Column(String, nullable=False)
     symbol = Column(String, nullable=False)
     quantity = Column(Float, nullable=False)
     latest_price = Column(Float, nullable=False)
-    last_updated = Column(DateTime, nullable=False, default=datetime.utcnow)
 
-    balance = relationship("Balance", back_populates="positions")
+    balance = relationship('Balance', back_populates='positions')
 
 
 def drop_then_init_db(engine):
-    Base.metadata.drop_all(engine)  # Create new tables
+    Base.metadata.drop_all(engine)  # Drop existing tables
     Base.metadata.create_all(engine)  # Create new tables
+
 
 def init_db(engine):
     Base.metadata.create_all(engine)  # Create new tables
