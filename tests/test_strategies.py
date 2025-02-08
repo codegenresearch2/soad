@@ -114,9 +114,9 @@ async def test_initialize_starting_balance_new(strategy):
 
 
 @pytest.mark.asyncio
-@patch('strategies.base_strategy.datetime') 
-@patch('strategies.base_strategy.asyncio.iscoroutinefunction') 
-@patch('strategies.base_strategy.BaseStrategy.should_own') 
+@patch('strategies.base_strategy.datetime')
+@patch('strategies.base_strategy.asyncio.iscoroutinefunction')
+@patch('strategies.base_strategy.BaseStrategy.should_own')
 async def test_sync_positions_with_broker(mock_should_own, mock_iscoroutinefunction, mock_datetime, strategy):
     # Mock method return values
     mock_should_own.return_value = 5
@@ -178,4 +178,4 @@ async def skip_test_fetch_current_db_positions(strategy):
 async def test_place_order(mock_iscoroutinefunction, mock_is_market_open, strategy):
     strategy.broker.place_order = AsyncMock()
     await strategy.place_order('AAPL', 10, 'buy', 150)
-    strategy.broker.place_order.assert_called_once_with('AAPL', 10, 'buy', strategy.strategy_name, 150, 'limit')
+    strategy.broker.place_order.assert_called_once_with('AAPL', 10, 'buy', strategy.strategy_name, 150)
