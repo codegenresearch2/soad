@@ -116,7 +116,7 @@ class BaseBroker(ABC):
             today = datetime.now().date()
             start_of_day = datetime.combine(today, datetime.min.time())
             end_of_day = datetime.combine(today, datetime.max.time())
-            trades = session.query(Trade).filter(and_(Trade.symbol == symbol, Trade.order_type == 'buy', Trade.timestamp >= start_of_day, Trade.timestamp <= end_of_day)).all()
+            trades = session.query(Trade).filter(and_(Trade.symbol == symbol, Trade.order_type == 'buy', Trade.timestamp >= start_of_day, Trade.timestamp <= end_of_day, Trade.broker == self.broker_name)).all()
             return len(trades) > 0
 
     def update_positions(self, session, balance_id, symbol, quantity, price):
