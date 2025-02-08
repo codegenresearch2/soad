@@ -3,9 +3,8 @@ from datetime import datetime
 from unittest.mock import patch, MagicMock
 from database.models import Trade, Balance
 from .base_test import BaseTest
-from brokers.base_broker import BaseBroker
 
-class MockBroker(BaseBroker):
+class MockBroker:
     def connect(self):
         pass
 
