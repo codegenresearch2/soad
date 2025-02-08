@@ -116,6 +116,8 @@ class PositionService:
         position.latest_price, position.last_updated = latest_price, now_naive
         underlying_symbol = self._get_underlying_symbol(position)
         await self._update_volatility_and_underlying_price(session, position, underlying_symbol)
+        cost_basis = await self.broker_service.get_cost_basis(position.broker, position.symbol)
+        position.cost_basis = cost_basis
 
     async def _fetch_and_log_price(self, position):
         latest_price = await self.broker_service.get_latest_price(position.broker, position.symbol)
