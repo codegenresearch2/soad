@@ -5,6 +5,7 @@ from database.models import Trade, Balance
 from .base_test import BaseTest
 from brokers.base_broker import BaseBroker
 
+
 class MockBroker(BaseBroker):
     def connect(self):
         pass
@@ -57,6 +58,7 @@ class MockBroker(BaseBroker):
             session.add(balance)
         session.commit()
 
+
 class TestTrading(BaseTest):
     def setUp(self):
         super().setUp()  # Call the setup from BaseTest
@@ -68,7 +70,7 @@ class TestTrading(BaseTest):
         self.session.commit()
 
     @patch('brokers.base_broker.MockBroker.execute_trade', new_callable=MagicMock)
-    def skip_test_execute_trade(self, mock_execute_trade):
+    def test_execute_trade(self, mock_execute_trade):
         trade_data = {
             'symbol': 'AAPL',
             'quantity': 10,
