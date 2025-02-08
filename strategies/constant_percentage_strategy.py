@@ -27,7 +27,7 @@ class ConstantPercentageStrategy(BaseStrategy):
         target_cash_balance = total_balance * self.cash_percentage
         target_investment_balance = total_balance - target_cash_balance
 
-        current_positions = self.get_current_positions() # TODO: Query the number of current positions in the DB for each ticker associated with this strategy, and then get their current value.
+        current_positions = self.get_current_positions()
 
         for stock, allocation in self.stock_allocations.items():
             target_balance = target_investment_balance * allocation
@@ -35,8 +35,10 @@ class ConstantPercentageStrategy(BaseStrategy):
             current_price = self.broker.get_current_price(stock)
             target_quantity = target_balance // current_price
             if current_position < target_quantity:
-                # print("Placing buy order")
                 self.broker.place_order(stock, target_quantity - current_position, 'buy', 'constant_percentage')
             elif current_position > target_quantity:
-                # print("Placing sell order")
                 self.broker.place_order(stock, current_position - target_quantity, 'sell', 'constant_percentage')
+
+    def get_current_positions(self):
+        positions = self.broker.get_positions()
+        return {position['symbol']: position['quantity'] for position in positions}
