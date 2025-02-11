@@ -16,8 +16,7 @@ from strategies.black_swan_strategy import BlackSwanStrategy
 from strategies.simple_strategy import SimpleStrategy
 from .logger import logger
 
-# Mapping of broker types to their constructors
-# TODO: refactor
+# Constants for configurable values
 BROKER_MAP = {
     'tradier': lambda config, engine: TradierBroker(
         api_key=os.environ.get('TRADIER_API_KEY', config.get('api_key')),
@@ -44,8 +43,6 @@ BROKER_MAP = {
     )
 }
 
-
-# Mapping of strategy types to their constructors
 STRATEGY_MAP = {
     'constant_percentage': lambda broker, strategy_name, config: ConstantPercentageStrategy(
         broker=broker,
@@ -103,7 +100,6 @@ def load_custom_strategy(broker, strategy_name, config):
         class_name = config['class_name']
         starting_capital = config['starting_capital']
         rebalance_interval_minutes = config['rebalance_interval_minutes']
-        execution_style = config.get('execution_style', '')
         strategy_class = load_strategy_class(file_path, class_name)
         logger.info(f"Initializing custom strategy '{class_name}' with config: {config}")
         return strategy_class(broker, strategy_name, starting_capital, rebalance_interval_minutes, execution_style, **config.get('strategy_params', {}))
@@ -117,24 +113,14 @@ def parse_config(config_path):
     return config
 
 def initialize_brokers(config):
-    # Create a single database engine for all brokers
-    if 'database' in config and 'url' in config['database']:
-        engine = create_async_engine(config['database']['url'])
-    elif os.environ.get("DATABASE_URL", None):
-        engine = create_async_engine(os.environ.get("DATABASE_URL"))
-    else:
-        engine = create_async_engine('sqlite+aiosqlite:///default_trading_system.db')
-
+    engine = create_async_engine(config['database']['url'])
     brokers = {}
     for broker_name, broker_config in config['brokers'].items():
         try:
-            # Initialize the broker with the shared engine
-            logger.debug(f"Initializing broker '{broker_name}' with config: {broker_config}")
             brokers[broker_name] = BROKER_MAP[broker_name](broker_config, engine)
         except Exception as e:
             logger.error(f"Error initializing broker '{broker_name}': {e}")
             continue
-
     return brokers
 
 async def initialize_strategy(strategy_name, strategy_type, broker, config):
@@ -176,7 +162,6 @@ def create_api_database_engine(config, local_testing=False):
         return create_engine(config['database']['url'])
     return create_engine(os.environ.get("DATABASE_URL", 'sqlite:///default_trading_system.db'))
 
-
 def create_database_engine(config, local_testing=False):
     if local_testing:
         return create_async_engine('sqlite+aiosqlite:///trading.db')
@@ -214,14 +199,11 @@ async def initialize_brokers_and_strategies(config):
             except Exception as e:
                 logger.error('Failed to rename strategy', extra={'error': str(e), 'renameStrategyConfig': strategy}, exc_info=True)
                 raise
-    # Initialize the brokers and strategies
     try:
         brokers, strategies = await initialize_system_components(config)
     except Exception as e:
         logger.error('Failed to initialize brokers', extra={'error': str(e)}, exc_info=True)
         return
-
-    # Initialize the strategies
     try:
         strategies = await initialize_strategies(brokers, config)
         logger.info('Strategies initialized successfully')
