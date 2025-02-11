@@ -10,11 +10,11 @@ DATABASE_URL = "sqlite:///trading.db"
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 
-def create_app():
-    app.session = Session()
+def create_app(engine):
+    app.session = Session(bind=engine)
     return app
 
-app = create_app()
+app = create_app(engine)
 
 @app.route('/position_page')
 def positions():
