@@ -54,7 +54,7 @@ async def test_reconcile_order_stale(order_manager, mock_db_manager, mock_broker
         id=1,
         broker="dummy_broker",
         broker_id=None,
-        timestamp=datetime.utcnow() - timedelta(seconds=PEGGED_ORDER_CANCEL_AFTER + 1),
+        timestamp=datetime.utcnow() - timedelta(days=3),
         status="open",
     )
 
