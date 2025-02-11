@@ -10,12 +10,6 @@ DATABASE_URL = "sqlite:///trading.db"
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 
-def create_app(engine):
-    app.session = Session(bind=engine)
-    return app
-
-app = create_app(engine)
-
 @app.route('/position_page')
 def positions():
     try:
@@ -34,46 +28,50 @@ def index():
 
 @app.route('/trades_per_strategy')
 def trades_per_strategy():
-    trades_count = app.session.query(Trade.strategy, Trade.broker, func.count(Trade.id)).group_by(Trade.strategy, Trade.broker).all()
+    trades_count = Session().query(Trade.strategy, Trade.broker, func.count(Trade.id)).group_by(Trade.strategy, Trade.broker).all()
     trades_count_serializable = [{"strategy": strategy, "broker": broker, "count": count} for strategy, broker, count in trades_count]
     return jsonify({"trades_per_strategy": trades_count_serializable})
 
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 def historic_balance_per_strategy():
-    historical_balances = app.session.query(
-        Balance.strategy,
-        Balance.broker,
-        func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
-        Balance.total_balance,
-    ).group_by(
-        Balance.strategy, Balance.broker, 'hour'
-    ).order_by(
-        Balance.strategy, Balance.broker, 'hour'
-    ).all()
-    historical_balances_serializable = []
-    for strategy, broker, hour, total_balance in historical_balances:
-        historical_balances_serializable.append({
-            "strategy": strategy,
-            "broker": broker,
-            "hour": hour,
-            "total_balance": total_balance
-        })
-    return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
+    session = Session()
+    try:
+        historical_balances = session.query(
+            Balance.strategy,
+            Balance.broker,
+            func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
+            Balance.total_balance,
+        ).group_by(
+            Balance.strategy, Balance.broker, 'hour'
+        ).order_by(
+            Balance.strategy, Balance.broker, 'hour'
+        ).all()
+        historical_balances_serializable = []
+        for strategy, broker, hour, total_balance in historical_balances:
+            historical_balances_serializable.append({
+                "strategy": strategy,
+                "broker": broker,
+                "hour": hour,
+                "total_balance": total_balance
+            })
+        return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
+    finally:
+        session.close()
 
 @app.route('/account_values')
 def account_values():
-    accounts = app.session.query(AccountInfo).all()
+    accounts = Session().query(AccountInfo).all()
     accounts_data = {account.broker: account.value for account in accounts}
     return jsonify({"account_values": accounts_data})
 
 @app.route('/trade_success_rate')
 def trade_success_rate():
-    strategies_and_brokers = app.session.query(Trade.strategy, Trade.broker).distinct().all()
+    strategies_and_brokers = Session().query(Trade.strategy, Trade.broker).distinct().all()
     success_rate_by_strategy_and_broker = []
 
     for strategy, broker in strategies_and_brokers:
-        total_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker).scalar()
-        successful_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker, Trade.profit_loss > 0).scalar()
+        total_trades = Session().query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker).scalar()
+        successful_trades = Session().query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker, Trade.profit_loss > 0).scalar()
         failed_trades = total_trades - successful_trades
 
         success_rate_by_strategy_and_broker.append({
@@ -91,7 +89,7 @@ def get_positions():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
 
-    query = app.session.query(Position, Balance).join(Balance, Position.balance_id == Balance.id)
+    query = Session().query(Position, Balance).join(Balance, Position.balance_id == Balance.id)
 
     if brokers:
         query = query.filter(Balance.broker.in_(brokers))
@@ -112,9 +110,5 @@ def get_positions():
 
     return jsonify({'positions': positions_data})
 
-def create_app(engine):
-    app = Flask("TradingAPI", template_folder='ui/templates')
-    app.session = Session(bind=engine)
-    return app
-
-app = create_app(engine)
+# Serve static files from the 'static' folder
+app.config['STATIC_FOLDER'] = 'static'
