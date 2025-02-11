@@ -14,7 +14,8 @@ def start_trading_system(config_path):
     brokers = initialize_brokers(config)
     
     # Initialize the database engine
-    engine = create_engine(config.get('database', {}).get('url', 'sqlite:///default_trading_system.db'))
+    database_config = config.get('database', {})
+    engine = create_engine(database_config.get('url', 'sqlite:///default_trading_system.db'))
     init_db(engine)
     
     # Connect to each broker
@@ -25,7 +26,7 @@ def start_trading_system(config_path):
     strategies = initialize_strategies(brokers, config)
     
     # Execute the strategies loop
-    rebalance_intervals = [timedelta(minutes=s['rebalance_interval_minutes']) for s in strategies]
+    rebalance_intervals = [timedelta(minutes=s.rebalance_interval_minutes) for s in strategies]
     last_rebalances = [datetime.min for _ in strategies]
     
     while True:
@@ -46,7 +47,8 @@ def start_api_server(config_path=None, local_testing=False):
     brokers = initialize_brokers(config)
 
     # Initialize the database engine
-    engine = create_engine(config.get('database', {}).get('url', 'sqlite:///default_trading_system.db'))
+    database_config = config.get('database', {})
+    engine = create_engine(database_config.get('url', 'sqlite:///default_trading_system.db'))
     init_db(engine)
 
     app = create_app(engine)
