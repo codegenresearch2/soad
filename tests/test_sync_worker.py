@@ -2,17 +2,17 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from datetime import datetime
+from datetime import datetime, timezone
 from data.sync_worker import PositionService, BrokerService, BalanceService, _get_async_engine, _run_sync_worker_iteration, _fetch_and_update_positions, _reconcile_brokers_and_update_balances
 from database.models import Position, Balance
 
 # Mock data for testing
 MOCK_POSITIONS = [
-    Position(symbol='AAPL', broker='tradier', latest_price=0, last_updated=datetime.now(), underlying_volatility=None),
-    Position(symbol='GOOG', broker='tastytrade', latest_price=0, last_updated=datetime.now(), underlying_volatility=None),
+    Position(symbol='AAPL', broker='tradier', latest_price=0, last_updated=datetime.now(timezone.utc), underlying_volatility=None),
+    Position(symbol='GOOG', broker='tastytrade', latest_price=0, last_updated=datetime.now(timezone.utc), underlying_volatility=None),
 ]
 
-MOCK_BALANCE = Balance(broker='tradier', strategy='RSI', type='cash', balance=10000.0, timestamp=datetime.now())
+MOCK_BALANCE = Balance(broker='tradier', strategy='RSI', type='cash', balance=10000.0, timestamp=datetime.now(timezone.utc))
 
 @pytest.fixture
 def broker_service():
@@ -39,7 +39,7 @@ async def test_update_position_prices_and_volatility(position_service, mock_sess
          patch('data.sync_worker.BrokerService.get_latest_price', new_callable=AsyncMock) as mock_get_price:
         
         mock_get_price.side_effect = [150.0, 200.0]
-        await position_service.update_position_prices_and_volatility(mock_session, MOCK_POSITIONS, datetime.now())
+        await position_service.update_position_prices_and_volatility(mock_session, MOCK_POSITIONS, datetime.now(timezone.utc))
         
         assert mock_get_price.call_count == 2
         mock_logger.info.assert_any_call('Positions fetched')
@@ -77,7 +77,7 @@ async def test_update_all_strategy_balances(balance_service, mock_session):
          patch('data.sync_worker.BalanceService._update_each_strategy_balance', new_callable=AsyncMock), \
          patch('data.sync_worker.BalanceService.update_uncategorized_balances', new_callable=AsyncMock):
         
-        await balance_service.update_all_strategy_balances(mock_session, 'tradier', datetime.now())
+        await balance_service.update_all_strategy_balances(mock_session, 'tradier', datetime.now(timezone.utc))
         
         assert mock_session.commit.call_count == 2  # One for each strategy and uncategorized
 
