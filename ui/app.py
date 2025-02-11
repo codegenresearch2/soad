@@ -4,7 +4,11 @@ from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo, Balance, Position
 import os
 
-app = Flask("TradingAPI", template_folder='ui/templates')
+app = Flask("TradingAPI")
+
+# CORS Configuration
+from flask_cors import CORS
+CORS(app)
 
 @app.route('/position_page')
 def positions():
@@ -84,23 +88,23 @@ def get_positions():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
 
-    query = app.session.query(Position, Balance).join(Balance, Position.balance_id == Balance.id)
+    query = app.session.query(Position)
 
     if brokers:
-        query = query.filter(Balance.broker.in_(brokers))
+        query = query.filter(Position.broker.in_(brokers))
     if strategies:
-        query = query.filter(Balance.strategy.in_(strategies))
+        query = query.filter(Position.strategy.in_(strategies))
 
     positions = query.all()
     positions_data = []
-    for position, balance in positions:
+    for position in positions:
         positions_data.append({
-            'broker': balance.broker,
-            'strategy': balance.strategy,
+            'broker': position.broker,
+            'strategy': position.strategy,
             'symbol': position.symbol,
             'quantity': position.quantity,
             'latest_price': position.latest_price,
-            'timestamp': balance.timestamp
+            'last_updated': position.last_updated
         })
 
     return jsonify({'positions': positions_data})
