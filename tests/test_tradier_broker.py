@@ -42,7 +42,7 @@ class TestTradierBroker(unittest.TestCase):
         }))
         mock_response = MagicMock()
         mock_response.json.return_value = {'data': {'session-token': 'token'}, 'executed_price': 155.00}
-        mock_post_place_order.return_value = mock_response
+        mock_post_place_order.side_effect = [mock_post_connect.return_value, mock_response]
 
         self.broker.connect()
         self.broker.get_account_info()
