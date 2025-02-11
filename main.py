@@ -46,9 +46,9 @@ def start_api_server(config_path=None, local_testing=False):
     # Initialize the brokers
     brokers = initialize_brokers(config)
 
-    # Initialize the database engine based on local_testing flag
+    # Initialize the database engine
     engine = create_engine('sqlite:///default_trading_system.db')
-    if local_testing:
+    if local_testing and 'database' in config and 'url' in config['database']:
         engine = create_engine(config['database']['url'])
 
     # Initialize the database
