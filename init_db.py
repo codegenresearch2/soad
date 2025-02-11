@@ -54,20 +54,32 @@ print("Fake trades inserted into the database.")
 print("Generating and inserting fake balance data and positions...")
 for broker in brokers:
     for strategy in strategies:
-        initial_balance = random.uniform(5000, 20000)
+        initial_cash_balance = random.uniform(5000, 20000)
+        initial_position_balance = random.uniform(5000, 20000)
         for timestamp in timestamps:
-            total_balance = initial_balance + random.uniform(-1000, 1000)  # Simulate some profit/loss
-            balance_record = Balance(
+            total_cash_balance = initial_cash_balance + random.uniform(-1000, 1000)  # Simulate some profit/loss
+            total_position_balance = initial_position_balance + random.uniform(-1000, 1000)  # Simulate some profit/loss
+            cash_balance_record = Balance(
                 broker=broker,
                 strategy=strategy,
-                initial_balance=initial_balance,
-                total_balance=total_balance,
+                type='cash',
+                balance=total_cash_balance,
                 timestamp=timestamp
             )
-            session.add(balance_record)
+            position_balance_record = Balance(
+                broker=broker,
+                strategy=strategy,
+                type='positions',
+                balance=total_position_balance,
+                timestamp=timestamp
+            )
+            session.add(cash_balance_record)
+            session.add(position_balance_record)
             session.commit()  # Commit each balance record individually
-            initial_balance = total_balance  # Update the initial balance for the next timestamp
-            print(f"Inserted balance record for {broker}, {strategy} at {timestamp}. Total balance: {total_balance}")
+            initial_cash_balance = total_cash_balance  # Update the initial balance for the next timestamp
+            initial_position_balance = total_position_balance  # Update the initial balance for the next timestamp
+            print(f"Inserted cash balance record for {broker}, {strategy} at {timestamp}. Total cash balance: {total_cash_balance}")
+            print(f"Inserted position balance record for {broker}, {strategy} at {timestamp}. Total position balance: {total_position_balance}")
 
             # Generate and insert fake positions for each balance record
             for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
