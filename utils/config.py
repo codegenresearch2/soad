@@ -8,9 +8,9 @@ from strategies.constant_percentage_strategy import ConstantPercentageStrategy
 
 # Mapping of broker types to their constructors
 BROKER_MAP = {
-    'tradier': lambda config, engine: TradierBroker(api_key=config['api_key'], secret_key=None if 'secret_key' not in config else config['secret_key'], engine=engine),
-    'etrade': lambda config, engine: EtradeBroker(api_key=config['api_key'], secret_key=None if 'secret_key' not in config else config['secret_key'], engine=engine),
-    'tastytrade': lambda config, engine: TastytradeBroker(api_key=config['api_key'], secret_key=None if 'secret_key' not in config else config['secret_key'], engine=engine)
+    'tradier': lambda config, engine: TradierBroker(api_key=config['api_key'], secret_key=config.get('secret_key', None), engine=engine, prevent_day_trading=config.get('prevent_day_trading', False)),
+    'etrade': lambda config, engine: EtradeBroker(api_key=config['api_key'], secret_key=config.get('secret_key', None), engine=engine, prevent_day_trading=config.get('prevent_day_trading', False)),
+    'tastytrade': lambda config, engine: TastytradeBroker(api_key=config['api_key'], secret_key=config.get('secret_key', None), engine=engine, prevent_day_trading=config.get('prevent_day_trading', False))
 }
 
 # Mapping of strategy types to their constructors
@@ -53,7 +53,7 @@ def initialize_brokers(config):
     
     brokers = {}
     for broker_name, broker_config in config['brokers'].items():
-        # Initialize the broker with the shared engine and handle secret key
+        # Initialize the broker with the shared engine and handle secret key and prevent_day_trading
         brokers[broker_name] = BROKER_MAP[broker_name](broker_config, engine)
     
     return brokers
