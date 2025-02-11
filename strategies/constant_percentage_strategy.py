@@ -40,3 +40,7 @@ class ConstantPercentageStrategy(BaseStrategy):
                 self.broker.place_order(stock, target_quantity - current_position, 'buy', 'constant_percentage')
             elif current_position > target_quantity:
                 self.broker.place_order(stock, current_position - target_quantity, 'sell', 'constant_percentage')
+
+    def get_current_positions(self):
+        positions = self.broker.get_positions()
+        return {position['symbol']: position['quantity'] for position in positions}
