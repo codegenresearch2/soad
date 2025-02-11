@@ -7,16 +7,15 @@ class TestEtradeBroker(unittest.TestCase):
     def setUp(self):
         self.broker = EtradeBroker('api_key', 'secret_key')
 
-    @patch('brokers.etrade_broker.requests.post')
     def mock_connect(self, mock_post):
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {'data': {'session-token': 'token'}}
         mock_post.return_value = mock_response
 
-    @patch('brokers.etrade_broker.requests.get')
-    def test_connect(self, mock_get):
-        self.mock_connect(mock_get)
+    @patch('brokers.etrade_broker.requests.post')
+    def test_connect(self, mock_post):
+        self.mock_connect(mock_post)
         self.broker.connect()
         self.assertTrue(hasattr(self.broker, 'auth'))
 
