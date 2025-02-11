@@ -14,11 +14,7 @@ def start_trading_system(config_path):
     brokers = initialize_brokers(config)
     
     # Initialize the database engine
-    engine = None
-    if 'database' in config and 'url' in config['database']:
-        engine = create_engine(config['database']['url'])
-    else:
-        engine = create_engine('sqlite:///default_trading_system.db')
+    engine = create_engine(config['database']['url']) if 'database' in config and 'url' in config['database'] else create_engine('sqlite:///default_trading_system.db')
     
     # Initialize the database
     init_db(engine)
@@ -43,18 +39,13 @@ def start_trading_system(config_path):
         time.sleep(60)  # Check every minute
 
 def start_api_server(config_path=None, local_testing=False):
-    if config_path is None:
-        config = {}
-    else:
-        config = parse_config(config_path)
-
     # Initialize the brokers
-    brokers = initialize_brokers(config)
+    brokers = initialize_brokers(parse_config(config_path)) if config_path else {}
 
     # Initialize the database engine
     engine = create_engine('sqlite:///default_trading_system.db')
-    if local_testing and 'database' in config and 'url' in config['database']:
-        engine = create_engine(config['database']['url'])
+    if local_testing and config_path and 'database' in parse_config(config_path) and 'url' in parse_config(config_path)['database']:
+        engine = create_engine(parse_config(config_path)['database']['url'])
 
     # Initialize the database
     init_db(engine)
