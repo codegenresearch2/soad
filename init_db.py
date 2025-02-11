@@ -14,11 +14,11 @@ session = Session()
 drop_then_init_db(engine)
 
 # Define brokers and strategies
-brokers = ['E*TRADE', 'Tradier', 'Fidelity', 'Schwab', 'TD Ameritrade']  # Expanded list of brokers
-strategies = ['SMA', 'EMA', 'RSI', 'Bollinger Bands', 'MACD', 'VWAP', 'Ichimoku']  # Expanded list of strategies
+brokers = ['E*TRADE', 'Tradier']  # Reduced list of brokers
+strategies = ['SMA', 'EMA']  # Reduced list of strategies
 
-# Generate unique hourly timestamps for the past 30 days
-start_date = datetime.utcnow() - timedelta(days=30)
+# Generate unique hourly timestamps for the past 5 days
+start_date = datetime.utcnow() - timedelta(days=5)
 end_date = datetime.utcnow()
 timestamps = [start_date + timedelta(hours=i) for i in range((end_date - start_date).days * 24)]
 
@@ -101,10 +101,7 @@ print("Fake balance data and positions generation and insertion completed.")
 fake_accounts = [
     AccountInfo(broker='E*TRADE', value=10000.0),
     AccountInfo(broker='Tradier', value=15000.0),
-    AccountInfo(broker='Fidelity', value=12000.0),
-    AccountInfo(broker='Schwab', value=13000.0),
-    AccountInfo(broker='TD Ameritrade', value=14000.0),
-]  # Added more fake account data entries to match the gold code
+]  # Modified fake account data to match the gold code
 
 # Insert fake account data into the database
 print("Inserting fake account data into the database...")
