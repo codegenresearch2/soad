@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, create_engine, 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
+from sqlalchemy.orm import backref
 
 Base = declarative_base()
 
@@ -55,7 +56,7 @@ class Position(Base):
     balance = relationship("Balance", back_populates="positions")
 
 def drop_then_init_db(engine):
-    Base.metadata.drop_all(engine)  # Create new tables
+    Base.metadata.drop_all(engine)  # Drop existing tables
     Base.metadata.create_all(engine)  # Create new tables
 
 def init_db(engine):
