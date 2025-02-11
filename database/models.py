@@ -60,8 +60,6 @@ def drop_then_init_db(engine):
 def init_db(engine):
     Base.metadata.create_all(engine)  # Create new tables
 
-# Removed the invalid comment "Changes made:"
-
 
 Changes made:
 1. Removed the invalid comment "Changes made:" from the code.
