@@ -6,6 +6,12 @@ from ui.app import create_app
 from utils.config import parse_config, initialize_brokers, initialize_strategies
 from sqlalchemy import create_engine
 
+def initialize_engine(config):
+    if 'database' in config and 'url' in config['database']:
+        return create_engine(config['database']['url'])
+    else:
+        return create_engine('sqlite:///default_trading_system.db')
+
 def start_trading_system(config_path):
     # Parse the configuration file
     config = parse_config(config_path)
@@ -14,7 +20,7 @@ def start_trading_system(config_path):
     brokers = initialize_brokers(config)
     
     # Initialize the database engine
-    engine = create_engine(config['database']['url'] if 'database' in config and 'url' in config['database'] else 'sqlite:///default_trading_system.db')
+    engine = initialize_engine(config)
     init_db(engine)  # Initialize the database
     
     # Connect to each broker
@@ -37,15 +43,14 @@ def start_trading_system(config_path):
         time.sleep(60)  # Check every minute
 
 def start_api_server(config_path=None):
-    if config_path:
-        config = parse_config(config_path)
-        # Initialize the brokers
-        brokers = initialize_brokers(config)
-        # Initialize the database engine
-        engine = create_engine(config['database']['url'] if 'database' in config and 'url' in config['database'] else 'sqlite:///default_trading_system.db')
-        init_db(engine)  # Initialize the database
-    else:
-        config = {}
+    config = parse_config(config_path) if config_path else {}
+    
+    # Initialize the brokers
+    brokers = initialize_brokers(config)
+    
+    # Initialize the database engine
+    engine = initialize_engine(config)
+    init_db(engine)  # Initialize the database
     
     app = create_app(engine)  # Pass the engine to the app
     app.run(host="0.0.0.0", port=8000, debug=True)
