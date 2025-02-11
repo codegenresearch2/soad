@@ -19,26 +19,26 @@ from .logger import logger
 # Constants for configurable values
 BROKER_MAP = {
     'tradier': lambda config, engine: TradierBroker(
-        api_key=os.environ.get('TRADIER_API_KEY', config.get('api_key', 'default_key')),
+        api_key=config.get('api_key', 'default_key'),
         secret_key=None,
         engine=engine,
         prevent_day_trading=config.get('prevent_day_trading', False)
     ),
     'tastytrade': lambda config, engine: TastytradeBroker(
-        username=os.environ.get('TASTYTRADE_USERNAME', config.get('username', 'default_username')),
-        password=os.environ.get('TASTYTRADE_PASSWORD', config.get('password', 'default_password')),
+        username=config.get('username', 'default_username'),
+        password=config.get('password', 'default_password'),
         engine=engine,
         prevent_day_trading=config.get('prevent_day_trading', False)
     ),
     'alpaca': lambda config, engine: AlpacaBroker(
-        api_key=os.environ.get('ALPACA_API_KEY', config.get('api_key', 'default_key')),
-        secret_key=os.environ.get('ALPACA_SECRET_KEY', config.get('secret_key', 'default_secret_key')),
+        api_key=config.get('api_key', 'default_key'),
+        secret_key=config.get('secret_key', 'default_secret_key'),
         engine=engine,
         prevent_day_trading=config.get('prevent_day_trading', False)
     ),
     'kraken': lambda config, engine: KrakenBroker(
-        api_key=os.environ.get('KRAKEN_API_KEY', config.get('api_key', 'default_key')),
-        secret_key=os.environ.get('KRAKEN_SECRET_KEY', config.get('secret_key', 'default_secret_key')),
+        api_key=config.get('api_key', 'default_key'),
+        secret_key=config.get('secret_key', 'default_secret_key'),
         engine=engine
     )
 }
