@@ -6,12 +6,13 @@ from brokers.tradier_broker import TradierBroker
 from brokers.tastytrade_broker import TastytradeBroker
 from brokers.etrade_broker import EtradeBroker
 from strategies.constant_percentage_strategy import ConstantPercentageStrategy
+from utils.config import load_custom_strategy
 
 # Mapping of broker types to their constructors
 BROKER_MAP = {
-    'tradier': lambda config, engine: TradierBroker(api_key=config['api_key'], secret_key=None, engine=engine, prevent_day_trading=config.get('prevent_day_trading', False)),
-    'etrade': lambda config, engine: EtradeBroker(api_key=config['api_key'], secret_key=config['secret_key'], engine=engine, prevent_day_trading=config.get('prevent_day_trading', False)),
-    'tastytrade': lambda config, engine: TastytradeBroker(api_key=config['api_key'], secret_key=config['secret_key'], engine=engine, prevent_day_trading=config.get('prevent_day_trading', False))
+    'tradier': lambda config, engine: TradierBroker(api_key=config['api_key'], secret_key=None, engine=engine),
+    'etrade': lambda config, engine: EtradeBroker(api_key=config['api_key'], secret_key=config['secret_key'], engine=engine),
+    'tastytrade': lambda config, engine: TastytradeBroker(api_key=config['api_key'], secret_key=config['secret_key'], engine=engine)
 }
 
 # Mapping of strategy types to their constructors
@@ -26,18 +27,11 @@ STRATEGY_MAP = {
     'custom': lambda broker, config: load_custom_strategy(broker, config)
 }
 
-def load_custom_strategy(broker, config):
-    spec = importlib.util.spec_from_file_location(config['className'], config['file'])
+def load_strategy_class(file_path, class_name):
+    spec = importlib.util.spec_from_file_location(class_name, file_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    strategy_class = getattr(module, config['className'])
-    return strategy_class(
-        broker=broker,
-        stock_allocations=config['stock_allocations'],
-        cash_percentage=config['cash_percentage'],
-        rebalance_interval_minutes=config['rebalance_interval_minutes'],
-        starting_capital=config['starting_capital']
-    )
+    return getattr(module, class_name)
 
 def parse_config(config_path):
     with open(config_path, 'r') as file:
@@ -51,7 +45,7 @@ def initialize_brokers(config):
     
     brokers = {}
     for broker_name, broker_config in config['brokers'].items():
-        # Initialize the broker with the shared engine and prevent_day_trading parameter
+        # Initialize the broker with the shared engine
         brokers[broker_name] = BROKER_MAP[broker_name](broker_config, engine)
     
     return brokers
