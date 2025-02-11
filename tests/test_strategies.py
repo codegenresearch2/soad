@@ -11,10 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 class TestBaseStrategy(BaseStrategy):
     def __init__(self, broker):
         super().__init__(broker, 'test_strategy', 10000)
+        self.logger = logging.getLogger('test_strategy')
         return
 
     async def rebalance(self):
-        pass
+        self.logger.info("Starting rebalance process")
+        # Implement rebalance logic here
+        self.logger.info("Rebalance process completed")
 
 @pytest.fixture
 def broker():
@@ -139,9 +142,6 @@ async def test_sync_positions_with_broker(mock_should_own, mock_iscoroutinefunct
     # Setup the side_effect for scalar() to simulate returning the Position and None on subsequent calls
     mock_result.scalar.side_effect = [mock_position, None]
 
-    # Mock the result of scalars().all() to return an empty list
-    mock_result.scalars.return_value.all.return_value = []
-
     # Mock session.execute to return the mock result
     session_mock.execute.return_value = mock_result
 
@@ -178,4 +178,4 @@ async def skip_test_fetch_current_db_positions(strategy):
 async def test_place_order(mock_iscoroutinefunction, mock_is_market_open, strategy):
     strategy.broker.place_order = AsyncMock()
     await strategy.place_order('AAPL', 10, 'buy', 150)
-    strategy.broker.place_order.assert_called_once_with('AAPL', 10, 'buy', strategy.strategy_name, 150, 'limit', execution_style='')
+    strategy.broker.place_order.assert_called_once_with('AAPL', 10, 'buy', strategy.strategy_name, 150, 'limit')
