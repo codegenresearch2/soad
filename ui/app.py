@@ -5,6 +5,7 @@ from database.models import Trade, AccountInfo, Balance, Position
 from flask_cors import CORS
 import numpy as np
 from scipy.stats import norm
+import os
 
 app = Flask("TradingAPI")
 CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
@@ -22,7 +23,7 @@ def historic_balance_per_strategy():
             Balance.strategy,
             Balance.broker,
             func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
-            Balance.total_balance,
+            Balance.balance  # Use Balance.balance as per the gold code
         ).group_by(
             Balance.strategy, Balance.broker, 'hour'
         ).order_by(
