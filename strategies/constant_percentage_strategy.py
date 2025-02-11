@@ -21,13 +21,15 @@ class ConstantPercentageStrategy(BaseStrategy):
                 broker=self.broker.broker_name
             ).first()
             if balance is None:
-                raise ValueError("Strategy balance not initialized for {self.strategy_name} strategy on {self.broker}.")
+                raise ValueError(f"Strategy balance not initialized for {self.strategy_name} strategy on {self.broker}.")
             total_balance = balance.total_balance
 
         target_cash_balance = total_balance * self.cash_percentage
         target_investment_balance = total_balance - target_cash_balance
 
         current_positions = self.get_current_positions()
+
+        # TODO: Query the number of current positions in the DB for each ticker associated with this strategy, and then get their current value.
 
         for stock, allocation in self.stock_allocations.items():
             target_balance = target_investment_balance * allocation
