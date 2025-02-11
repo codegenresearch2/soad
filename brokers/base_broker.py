@@ -42,7 +42,7 @@ class BaseBroker(ABC):
     def place_order(self, symbol, quantity, order_type, strategy, price=None):
         """Places an order and updates the trade information in the database."""
         order_info = self._place_order(symbol, quantity, order_type, price)
-        executed_price = order_info.get('executed_price', price)
+        executed_price = order_info.get('executed_price', None)  # Initialize to None
         with self.db_manager.Session() as session:
             trade = Trade(
                 symbol=symbol,
@@ -55,7 +55,7 @@ class BaseBroker(ABC):
                 strategy=strategy,
                 success=None,
                 profit_loss=None,
-                executed_price=executed_price  # Set explicitly to None or the order price
+                executed_price=executed_price  # Set explicitly to None
             )
             session.add(trade)
             session.commit()
@@ -87,10 +87,7 @@ class BaseBroker(ABC):
         if not trade:
             return
 
-        executed_price = order_info.get('filled_price', trade.price)
-        if executed_price is None:
-            executed_price = trade.price
-
+        executed_price = order_info.get('filled_price', trade.price)  # Use 'filled_price' from order_info
         profit_loss = self.db_manager.calculate_profit_loss(trade)
         success = "success" if profit_loss > 0 else "failure"
 
