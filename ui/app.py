@@ -3,8 +3,10 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo, Balance, Position
 import os
+from flask_cors import CORS
 
 app = Flask("TradingAPI", template_folder='ui/templates')
+CORS(app)  # Enable CORS for all routes
 
 @app.route('/position_page')
 def positions():
@@ -30,25 +32,31 @@ def trades_per_strategy():
 
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 def historic_balance_per_strategy():
-    historical_balances = app.session.query(
-        Balance.strategy,
-        Balance.broker,
-        func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
-        Balance.total_balance,
-    ).group_by(
-        Balance.strategy, Balance.broker, 'hour'
-    ).order_by(
-        Balance.strategy, Balance.broker, 'hour'
-    ).all()
-    historical_balances_serializable = []
-    for strategy, broker, hour, total_balance in historical_balances:
-        historical_balances_serializable.append({
-            "strategy": strategy,
-            "broker": broker,
-            "hour": hour,
-            "total_balance": total_balance
-        })
-    return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
+    try:
+        historical_balances = app.session.query(
+            Balance.strategy,
+            Balance.broker,
+            func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
+            Balance.total_balance,
+        ).group_by(
+            Balance.strategy, Balance.broker, 'hour'
+        ).order_by(
+            Balance.strategy, Balance.broker, 'hour'
+        ).all()
+        historical_balances_serializable = []
+        for strategy, broker, hour, total_balance in historical_balances:
+            historical_balances_serializable.append({
+                "strategy": strategy,
+                "broker": broker,
+                "hour": hour,
+                "total_balance": total_balance
+            })
+        return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
+    except Exception as e:
+        app.logger.error(f"Error fetching historical balance data: {e}")
+        return jsonify({"error": "Failed to fetch historical balance data"}), 500
+    finally:
+        app.session.close()
 
 @app.route('/account_values')
 def account_values():
@@ -81,23 +89,23 @@ def get_positions():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
 
-    query = app.session.query(Position, Balance).join(Balance, Position.balance_id == Balance.id)
+    query = app.session.query(Position)
 
     if brokers:
-        query = query.filter(Balance.broker.in_(brokers))
+        query = query.filter(Position.broker.in_(brokers))
     if strategies:
-        query = query.filter(Balance.strategy.in_(strategies))
+        query = query.filter(Position.strategy.in_(strategies))
 
     positions = query.all()
     positions_data = []
-    for position, balance in positions:
+    for position in positions:
         positions_data.append({
-            'broker': balance.broker,
-            'strategy': balance.strategy,
+            'broker': position.broker,
+            'strategy': position.strategy,
             'symbol': position.symbol,
             'quantity': position.quantity,
             'latest_price': position.latest_price,
-            'timestamp': balance.timestamp
+            'timestamp': position.last_updated
         })
 
     return jsonify({'positions': positions_data})
