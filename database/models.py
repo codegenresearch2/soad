@@ -2,7 +2,6 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, create_engine, 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
-from sqlalchemy import PrimaryKeyConstraint, ForeignKeyConstraint
 
 Base = declarative_base()
 
@@ -35,10 +34,11 @@ class Balance(Base):
     broker = Column(String, nullable=False)
     strategy = Column(String, nullable=True)
     balance = Column(Float, default=0.0)
+    # type: 'cash' or 'positions'
     type = Column(String, nullable=False)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
     trades = relationship('Trade', backref='balance')
-    positions = relationship("Position", back_populates="balance", foreign_keys='[Position.balance_id]', primaryjoin='Balance.id == Position.balance_id and Position.type == "positions"')
+    positions = relationship("Position", back_populates="balance", foreign_keys='[Position.balance_id]', primaryjoin='and_(Balance.id == Position.balance_id, Position.type == "positions")')
 
 class Position(Base):
     __tablename__ = 'positions'
