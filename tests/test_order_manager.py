@@ -9,7 +9,10 @@ from order_manager.manager import OrderManager, MARK_ORDER_STALE_AFTER, PEGGED_O
 @pytest_asyncio.fixture
 def mock_db_manager():
     """Mock the DBManager."""
-    return AsyncMock()
+    db_manager = AsyncMock()
+    db_manager.set_trade_filled.return_value = None
+    db_manager.update_trade_status.return_value = None
+    return db_manager
 
 
 @pytest_asyncio.fixture
