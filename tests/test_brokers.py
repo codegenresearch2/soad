@@ -1,9 +1,8 @@
 import unittest
 from datetime import datetime
 from unittest.mock import patch, MagicMock
-from database.models import Trade, Balance
-from .base_test import BaseTest
 from brokers.base_broker import BaseBroker
+from database.models import Trade, Balance
 
 class MockBroker(BaseBroker):
     def connect(self):
@@ -56,17 +55,7 @@ class MockBroker(BaseBroker):
             session.add(balance)
         session.commit()
 
-class TestTrading(BaseTest):
-    def setUp(self):
-        super().setUp()  # Call the setup from BaseTest
-
-        # Additional setup
-        additional_fake_trades = [
-            Trade(symbol='MSFT', quantity=8, price=200.0, executed_price=202.0, order_type='buy', status='executed', timestamp=datetime.utcnow(), broker='Tastytrade', strategy='RSI', profit_loss=16.0, success='yes'),
-        ]
-        self.session.add_all(additional_fake_trades)
-        self.session.commit()
-
+class TestTrading(unittest.TestCase):
     @patch('brokers.base_broker.requests.get')
     @patch('brokers.base_broker.requests.post')
     def test_execute_trade(self, mock_post, mock_get):
@@ -89,7 +78,7 @@ class TestTrading(BaseTest):
         }
 
         # Execute the trade
-        broker = MockBroker('api_key', 'secret_key', 'E*TRADE', engine=self.engine)
+        broker = MockBroker('api_key', 'secret_key', 'E*TRADE')
         broker.execute_trade(mock_session, trade_data)
 
         # Verify the trade was inserted
