@@ -1,7 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, create_engine, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
-from sqlalchemy import PrimaryKeyConstraint, ForeignKeyConstraint
 from datetime import datetime
 
 Base = declarative_base()
@@ -18,7 +17,7 @@ class Trade(Base):
     status = Column(String, nullable=False)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
     broker = Column(String, nullable=False)
-    strategy = Column(String, nullable=True)  # Changed to nullable=True
+    strategy = Column(String, nullable=True)
     profit_loss = Column(Float, nullable=True)
     success = Column(String, nullable=True)
     balance_id = Column(Integer, ForeignKey('balances.id'))
@@ -32,17 +31,14 @@ class AccountInfo(Base):
 class Balance(Base):
     __tablename__ = 'balances'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    broker = Column(String)
-    strategy = Column(String, nullable=True)  # Changed to nullable=True
+    broker = Column(String, nullable=False)
+    strategy = Column(String, nullable=True)
     initial_balance = Column(Float, default=0.0)
     current_balance = Column(Float, default=0.0)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
-    type = Column(String)  # Added this field
+    type = Column(String, nullable=False)
     trades = relationship('Trade', backref='balance')
     positions = relationship("Position", back_populates="balance")
-    __table_args__ = (
-        PrimaryKeyConstraint('id', name='balance_pk'),
-    )
 
 class Position(Base):
     __tablename__ = 'positions'
