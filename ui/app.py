@@ -10,8 +10,11 @@ DATABASE_URL = "sqlite:///trading.db"
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 
-# Store the session in the app object
-app.session = Session()
+def create_app(engine):
+    app.session = Session(bind=engine)
+    return app
+
+app = create_app(engine)
 
 @app.route('/position_page')
 def positions():
@@ -64,6 +67,8 @@ def historic_balance_per_strategy():
     except Exception as e:
         app.logger.error(f"Error fetching historic balance per strategy: {e}")
         return jsonify({"error": "Failed to fetch historic balance per strategy"}), 500
+    finally:
+        app.session.close()
 
 @app.route('/account_values')
 def account_values():
@@ -129,5 +134,9 @@ def get_positions():
         app.logger.error(f"Error fetching positions: {e}")
         return jsonify({"error": "Failed to fetch positions"}), 500
 
-def create_app():
+def create_app(engine):
+    app = Flask("TradingAPI", template_folder='ui/templates')
+    app.session = Session(bind=engine)
     return app
+
+app = create_app(engine)
