@@ -56,7 +56,7 @@ class DBManager:
 
     def calculate_profit_loss(self, trade):
         if trade.executed_price is None:
-            raise ValueError("Executed price cannot be None. Please provide a valid executed price.")
+            raise ValueError("Executed price must be provided.")
         current_price = trade.executed_price
         if trade.order_type.lower() == 'buy':
             profit_loss = (current_price - trade.price) * trade.quantity
