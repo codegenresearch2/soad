@@ -6,7 +6,8 @@ from ui.app import create_app
 from utils.config import parse_config, initialize_brokers, initialize_strategies
 from sqlalchemy import create_engine
 
-def initialize_engine(config):
+def initialize_engine(config_path):
+    config = parse_config(config_path)
     if 'database' in config and 'url' in config['database']:
         return create_engine(config['database']['url'])
     else:
@@ -20,7 +21,7 @@ def start_trading_system(config_path):
     brokers = initialize_brokers(config)
     
     # Initialize the database engine
-    engine = initialize_engine(config)
+    engine = initialize_engine(config_path)
     init_db(engine)  # Initialize the database
     
     # Connect to each broker
@@ -42,14 +43,14 @@ def start_trading_system(config_path):
                 last_rebalances[i] = now
         time.sleep(60)  # Check every minute
 
-def start_api_server(config_path=None):
-    config = parse_config(config_path) if config_path else {}
+def start_api_server():
+    config = parse_config(None) if args.config is None else parse_config(args.config)
     
     # Initialize the brokers
     brokers = initialize_brokers(config)
     
     # Initialize the database engine
-    engine = initialize_engine(config)
+    engine = initialize_engine(args.config if args.config else None)
     init_db(engine)  # Initialize the database
     
     app = create_app(engine)  # Pass the engine to the app
@@ -66,7 +67,7 @@ def main():
             parser.error('--config is required when mode is "trade"')
         start_trading_system(args.config)
     elif args.mode == 'api':
-        start_api_server(args.config)
+        start_api_server()
 
 if __name__ == "__main__":
     main()
