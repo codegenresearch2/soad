@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, request
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo, Balance, Position
@@ -23,19 +23,19 @@ def historic_balance_per_strategy():
             Balance.strategy,
             Balance.broker,
             func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
-            Balance.balance,
+            Balance.total_balance,
         ).group_by(
             Balance.strategy, Balance.broker, 'hour'
         ).order_by(
             Balance.strategy, Balance.broker, 'hour'
         ).all()
         historical_balances_serializable = []
-        for strategy, broker, hour, balance in historical_balances:
+        for strategy, broker, hour, total_balance in historical_balances:
             historical_balances_serializable.append({
                 "strategy": strategy,
                 "broker": broker,
                 "hour": hour,
-                "balance": balance
+                "total_balance": total_balance
             })
         return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
     finally:
@@ -118,7 +118,6 @@ def get_trades():
     } for trade in trades]
 
     return jsonify({'trades': trades_data})
-
 
 @app.route('/trade_stats', methods=['GET'])
 def get_trade_stats():
@@ -235,7 +234,6 @@ def get_sharpe_ratio():
     sharpe_ratio = mean_return / std_dev_return if std_dev_return != 0 else 0
 
     return jsonify({'sharpe_ratio': sharpe_ratio})
-
 
 def create_app(engine):
     Session = sessionmaker(bind=engine)
