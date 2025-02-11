@@ -10,10 +10,11 @@ class BaseBroker(ABC):
         self.api_key = api_key
         self.secret_key = secret_key
         self.broker_name = broker_name
+        self.engine = engine
         self.db_manager = DBManager(engine)
         self.Session = sessionmaker(bind=engine)
         self.account_id = None
-        self.prevent_day_trading = False
+        self.prevent_day_trading = prevent_day_trading
 
     @abstractmethod
     def connect(self):
@@ -113,8 +114,22 @@ class BaseBroker(ABC):
             session.add(trade)
             session.commit()
 
-        # Update positions
-        self.update_positions(session, trade, order_type)
+            balance = session.query(Balance).filter_by(broker=self.broker_name, strategy=strategy).first()
+            if not balance:
+                balance = Balance(
+                    broker=self.broker_name,
+                    strategy=strategy,
+                    initial_balance=0,
+                    total_balance=0,
+                    timestamp=datetime.now()
+                )
+                session.add(balance)
+
+            balance.total_balance += trade.executed_price * trade.quantity
+            session.commit()
+
+            # Update positions
+            self.update_positions(session, trade)
 
         return response
 
