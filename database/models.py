@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, create_engine, ForeignKey, PrimaryKeyConstraint
+from sqlalchemy import Column, Integer, String, Float, DateTime, create_engine, ForeignKey, PrimaryKeyConstraint, ForeignKeyConstraint
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
+from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 
@@ -29,11 +30,11 @@ class AccountInfo(Base):
 
 class Balance(Base):
     __tablename__ = 'balances'
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     broker = Column(String, nullable=False)
     strategy = Column(String, nullable=True)
     balance = Column(Float, nullable=False, default=0.0)
-    type = Column(String, nullable=False)
+    type = Column(String, nullable=False)  # e.g., 'cash' or 'positions'
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
     positions = relationship("Position", back_populates="balance")
 
@@ -56,7 +57,8 @@ class Position(Base):
     balance = relationship("Balance", back_populates="positions")
 
 def init_db(engine):
-    Base.metadata.create_all(engine)
+    Base.metadata.drop_all(engine)  # Drop existing tables
+    Base.metadata.create_all(engine)  # Create new tables
 
 # Example usage:
 # engine = create_engine('sqlite:///:memory:')
