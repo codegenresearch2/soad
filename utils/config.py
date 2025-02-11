@@ -6,7 +6,6 @@ from brokers.tradier_broker import TradierBroker
 from brokers.tastytrade_broker import TastytradeBroker
 from brokers.etrade_broker import EtradeBroker
 from strategies.constant_percentage_strategy import ConstantPercentageStrategy
-from utils.config import load_custom_strategy
 
 # Mapping of broker types to their constructors
 BROKER_MAP = {
@@ -16,22 +15,18 @@ BROKER_MAP = {
 }
 
 # Mapping of strategy types to their constructors
-STRATEGY_MAP = {
-    'constant_percentage': lambda broker, config: ConstantPercentageStrategy(
+def load_custom_strategy(broker, config):
+    spec = importlib.util.spec_from_file_location(config['className'], config['file'])
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    strategy_class = getattr(module, config['className'])
+    return strategy_class(
         broker=broker,
         stock_allocations=config['stock_allocations'],
         cash_percentage=config['cash_percentage'],
         rebalance_interval_minutes=config['rebalance_interval_minutes'],
         starting_capital=config['starting_capital']
-    ),
-    'custom': lambda broker, config: load_custom_strategy(broker, config)
-}
-
-def load_strategy_class(file_path, class_name):
-    spec = importlib.util.spec_from_file_location(class_name, file_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return getattr(module, class_name)
+    )
 
 def parse_config(config_path):
     with open(config_path, 'r') as file:
@@ -59,6 +54,8 @@ def initialize_strategies(brokers, config):
         broker = brokers[broker_name]
         if strategy_type in STRATEGY_MAP:
             strategies.append(STRATEGY_MAP[strategy_type](broker, strategy_config))
+        elif strategy_type == 'custom':
+            strategies.append(load_custom_strategy(broker, strategy_config))
         else:
             raise ValueError(f"Unsupported strategy type: {strategy_type}")
     return strategies
