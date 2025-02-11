@@ -45,7 +45,7 @@ class BaseBroker(ABC):
             trade = Trade(
                 symbol=symbol,
                 quantity=quantity,
-                price=price if price is not None else 0,  # Handle None values by setting to 0
+                price=price,  # Directly use the price parameter without fallback
                 order_type=order_type,
                 status=order_info.get('status', 'unknown'),
                 timestamp=datetime.now(),
