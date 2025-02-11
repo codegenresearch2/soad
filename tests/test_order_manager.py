@@ -5,6 +5,9 @@ from datetime import datetime, timedelta
 from database.models import Trade
 from order_manager.manager import OrderManager, MARK_ORDER_STALE_AFTER, PEGGED_ORDER_CANCEL_AFTER
 
+# Constants defined at the top of the file
+MARK_ORDER_STALE_AFTER = 60 * 60 * 24 * 2  # 2 days
+PEGGED_ORDER_CANCEL_AFTER = 15  # 15 seconds
 
 @pytest_asyncio.fixture
 def mock_db_manager():
