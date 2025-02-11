@@ -173,5 +173,5 @@ This revised code snippet addresses the feedback received by:
 4. Managing the session context effectively when querying the database for trades or balances.
 5. Consistently applying error handling for situations where a sell order exceeds the current position quantity.
 6. Ensuring all abstract methods are implemented correctly and their functionality aligns with the expectations set by the gold code.
-7. Considering adding the method for getting the options chain if relevant to the implementation.
-8. Properly initializing parameters, including `prevent_day_trading`, to match the gold code's structure.
+7. Properly initializing parameters, including `prevent_day_trading`, to match the gold code's structure.
+8. Ensuring the `update_trade` method correctly updates the trade information after retrieving the order status or cancel status.
