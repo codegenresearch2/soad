@@ -2,7 +2,6 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, create_engine, 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
-from sqlalchemy.orm import backref
 
 Base = declarative_base()
 
@@ -18,7 +17,7 @@ class Trade(Base):
     status = Column(String, nullable=False)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
     broker = Column(String, nullable=False)
-    strategy = Column(String, nullable=False)
+    strategy = Column(String, nullable=True)  # Changed to nullable=True
     profit_loss = Column(Float, nullable=True)
     success = Column(String, nullable=True)
     balance_id = Column(Integer, ForeignKey('balances.id'))
@@ -33,10 +32,8 @@ class Balance(Base):
     __tablename__ = 'balances'
     id = Column(Integer, primary_key=True, autoincrement=True)
     broker = Column(String)
-    strategy = Column(String)
-    type = Column(String, nullable=False)  # Differentiate balance types
-    initial_balance = Column(Float, default=0.0)
-    total_balance = Column(Float, default=0.0)
+    strategy = Column(String, nullable=True)  # Changed to nullable=True
+    balance = Column(Float, default=0.0)  # Changed to a single balance attribute
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
     trades = relationship('Trade', backref='balance')
     positions = relationship("Position", back_populates="balance")
