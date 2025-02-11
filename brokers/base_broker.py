@@ -61,16 +61,16 @@ class BaseBroker(ABC):
         return order_info
 
     def get_order_status(self, order_id):
+        order_status = self._get_order_status(order_id)
         with self.db_manager.Session() as session:
-            order_status = self._get_order_status(order_id)
             trade = session.query(Trade).filter_by(id=order_id).first()
             if trade:
                 self.update_trade(session, trade.id, order_status)
         return order_status
 
     def cancel_order(self, order_id):
+        cancel_status = self._cancel_order(order_id)
         with self.db_manager.Session() as session:
-            cancel_status = self._cancel_order(order_id)
             trade = session.query(Trade).filter_by(id=order_id).first()
             if trade:
                 self.update_trade(session, trade.id, cancel_status)
