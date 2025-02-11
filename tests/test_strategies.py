@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class TestBaseStrategy(BaseStrategy):
-    def __init__(self, broker):
-        super().__init__(broker, 'test_strategy', 10000)
+    def __init__(self, broker, execution_style='default'):
+        super().__init__(broker, 'test_strategy', 10000, execution_style)
         return
 
     async def rebalance(self):
@@ -178,4 +178,4 @@ async def skip_test_fetch_current_db_positions(strategy):
 async def test_place_order(mock_iscoroutinefunction, mock_is_market_open, strategy):
     strategy.broker.place_order = AsyncMock()
     await strategy.place_order('AAPL', 10, 'buy', 150)
-    strategy.broker.place_order.assert_called_once_with('AAPL', 10, 'buy', strategy.strategy_name, 150, 'limit', execution_style='')
+    strategy.broker.place_order.assert_called_once_with('AAPL', 10, 'buy', strategy.strategy_name, 150, 'limit')
