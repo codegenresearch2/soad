@@ -47,6 +47,9 @@ class Position(Base):
     symbol = Column(String, nullable=False)
     quantity = Column(Float, nullable=False)
     latest_price = Column(Float, nullable=False)
+    broker = Column(String, nullable=False)
+    strategy = Column(String, nullable=False)
+    last_updated = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     balance = relationship("Balance", back_populates="positions")
 
