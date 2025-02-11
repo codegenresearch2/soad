@@ -110,7 +110,7 @@ class BaseBroker(ABC):
         
         with self.Session() as session:
             session.add(trade)
-            session.commit()
+            session.commit()  # Commit the trade before updating positions
 
             balance = session.query(Balance).filter_by(broker=self.broker_name, strategy=strategy).first()
             if not balance:
