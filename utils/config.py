@@ -60,8 +60,7 @@ def initialize_brokers(config):
 
 def initialize_strategies(brokers, config):
     strategies = []
-    strategies_config = config.get('strategies', [])
-    for strategy_config in strategies_config:
+    for strategy_config in config.get('strategies', []):
         strategy_type = strategy_config['type']
         broker_name = strategy_config['broker']
         broker = brokers[broker_name]
