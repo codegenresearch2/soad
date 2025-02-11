@@ -2,8 +2,7 @@ from abc import ABC, abstractmethod
 import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.sql import and_
-from sqlalchemy import select
+from sqlalchemy.sql import select
 from database.db_manager import DBManager
 from database.models import Trade, AccountInfo, Position, Balance
 from datetime import datetime
@@ -412,6 +411,10 @@ class BaseBroker(ABC):
             logger.error('Failed to retrieve options chain', extra={'error': str(e)})
             return None
 
+    @abstractmethod
+    def get_cost_basis(self, symbol):
+        pass
+
     async def update_trade(self, session, trade_id, order_info):
         '''Update the trade with the order information'''
         try:
@@ -433,3 +436,67 @@ class BaseBroker(ABC):
             logger.info('Trade updated', extra={'trade': trade})
         except Exception as e:
             logger.error('Failed to update trade', extra={'error': str(e)})
+
+    async def update_positions(self, trade):
+        '''Update the positions based on the trade'''
+        logger.info('Updating positions', extra={'trade': trade})
+
+        if trade.quantity == 0:
+            logger.error('Trade quantity is 0, doing nothing', extra={'trade': trade})
+            return
+
+        try:
+            async with self.Session() as session:
+                # Log before querying the position
+                logger.debug(f"Querying position for symbol: {trade.symbol}, broker: {self.broker_name}, strategy: {trade.strategy}")
+
+                result = await session.execute(
+                    select(Position).filter_by(
+                        symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy
+                    )
+                )
+                position = result.scalars().first()
+
+                # Log after querying the position
+                logger.debug(f"Queried position: {position}")
+
+                if trade.order_type == 'buy':
+                    logger.info('Processing buy order', extra={'trade': trade})
+                    if position:
+                        logger.debug(f"Updating existing position: {position}")
+                        position.cost_basis += trade.executed_price * trade.quantity
+                        position.quantity += trade.quantity
+                        position.latest_price = trade.executed_price
+                        position.timestamp = datetime.now()
+                    else:
+                        logger.debug(f"Creating new position for symbol: {trade.symbol}")
+                        position = Position(
+                            broker=self.broker_name,
+                            strategy=trade.strategy,
+                            symbol=trade.symbol,
+                            quantity=trade.quantity,
+                            latest_price=trade.executed_price,
+                            cost_basis=trade.executed_price * trade.quantity,
+                        )
+                        session.add(position)
+
+                elif trade.order_type == 'sell':
+                    logger.info('Processing sell order', extra={'trade': trade})
+                    if position:
+                        if position.quantity == trade.quantity:
+                            logger.info('Deleting sold position', extra={'position': position})
+                            await session.delete(position)
+                            await session.commit()
+                            logger.debug(f"Position after sell: {position}")
+                        elif position.quantity > trade.quantity:
+                            logger.debug(f"Reducing quantity of position: {position}")
+                            cost_per_share = position.cost_basis / position.quantity
+                            position.cost_basis -= trade.quantity * cost_per_share
+                            position.quantity -= trade.quantity
+                            position.latest_price = trade.executed_price
+                        session.add(position)
+
+                await session.commit()
+
+                # Log after committing changes
+                logger.info('Position updated', extra={'position
