@@ -13,11 +13,8 @@ def start_trading_system(config_path):
     # Initialize the brokers
     brokers = initialize_brokers(config)
     
-    # Check for database configuration and initialize the database engine
-    database_config = config.get('database', {})
-    engine_url = database_config.get('url')
-    if not engine_url:
-        engine_url = 'sqlite:///default_trading_system.db'
+    # Initialize the database engine
+    engine_url = config.get('database', {}).get('url', 'sqlite:///default_trading_system.db')
     engine = create_engine(engine_url)
     init_db(engine)
     
@@ -50,11 +47,10 @@ def start_api_server(config_path=None, local_testing=False):
     brokers = initialize_brokers(config)
 
     # Set the database engine URL based on local testing
-    database_config = config.get('database', {})
     if local_testing:
         engine_url = 'sqlite:///local_testing_trading_system.db'
     else:
-        engine_url = database_config.get('url', 'sqlite:///default_trading_system.db')
+        engine_url = config.get('database', {}).get('url', 'sqlite:///default_trading_system.db')
     engine = create_engine(engine_url)
     init_db(engine)
 
