@@ -6,19 +6,14 @@ from strategies.base_strategy import BaseStrategy
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from database.models import Balance, Position
-import logging
 
 class TestBaseStrategy(BaseStrategy):
     def __init__(self, broker):
         super().__init__(broker, 'test_strategy', 10000)
-        self.logger = logging.getLogger('test_strategy')
-        self.logger.info("Logger initialized successfully")
 
     async def rebalance(self):
         # Implement rebalance logic here
-        self.logger.info("Starting rebalance process")
-        # Placeholder for rebalance logic
-        self.logger.info("Rebalance process completed")
+        pass
 
 @pytest.fixture
 def broker():
