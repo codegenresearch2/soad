@@ -30,13 +30,6 @@ class BaseBroker(ABC):
         pass
 
     @abstractmethod
-    def get_cost_basis(self, symbol):
-        """
-        Retrieve the cost basis for a specific position (symbol) from the broker.
-        """
-        pass
-
-    @abstractmethod
     def _get_account_info(self):
         pass
 
@@ -166,10 +159,9 @@ class BaseBroker(ABC):
 
                 # Log after committing changes
                 logger.info('Position updated', extra={'position': position})
-
+     
         except Exception as e:
             logger.error('Failed to update positions', extra={'error': str(e)})
-
 
     async def place_future_option_order(self, symbol, quantity, order_type, strategy, price=None):
         '''Place an order for a future option'''
@@ -213,11 +205,11 @@ class BaseBroker(ABC):
                 await self.update_positions(trade)
 
                 latest_balance = await session.execute(
-                    session.query(Balance).filter_by(
+                    select(Balance).filter_by(
                         broker=self.broker_name, strategy=strategy, type='cash'
                     ).order_by(Balance.timestamp.desc())
                 )
-                latest_balance = latest_balance.scalars().first()
+                latest_balance = latest_balance.scalar()
                 if latest_balance:
                     multiplier = futures_contract_size(symbol)
                     if multiplier == 1:
@@ -284,11 +276,11 @@ class BaseBroker(ABC):
                 await self.update_positions(trade)
 
                 latest_balance = await session.execute(
-                    session.query(Balance).filter_by(
+                    select(Balance).filter_by(
                         broker=self.broker_name, strategy=strategy, type='cash'
                     ).order_by(Balance.timestamp.desc())
                 )
-                latest_balance = latest_balance.scalars().first()
+                latest_balance = latest_balance.scalar()
                 if latest_balance:
                     order_cost = trade.executed_price * quantity * OPTIONS_CONTRACT_SIZE
 
@@ -348,11 +340,11 @@ class BaseBroker(ABC):
                 await self.update_positions(trade)
 
                 latest_balance = await session.execute(
-                    session.query(Balance).filter_by(
+                    select(Balance).filter_by(
                         broker=self.broker_name, strategy=strategy, type='cash'
                     ).order_by(Balance.timestamp.desc())
                 )
-                latest_balance = latest_balance.scalars().first()
+                latest_balance = latest_balance.scalar()
                 if latest_balance:
                     order_cost = trade.executed_price * quantity
 
