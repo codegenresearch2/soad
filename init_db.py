@@ -17,8 +17,8 @@ drop_then_init_db(engine)
 brokers = ['E*TRADE', 'Tradier', 'Tastytrade']
 strategies = ['SMA', 'EMA', 'RSI', 'Bollinger Bands', 'MACD', 'VWAP', 'Ichimoku']
 
-# Generate unique hourly timestamps for the past 30 days
-start_date = datetime.utcnow() - timedelta(days=2)
+# Generate unique hourly timestamps for the past 5 days
+start_date = datetime.utcnow() - timedelta(days=5)
 end_date = datetime.utcnow()
 timestamps = [start_date + timedelta(hours=i) for i in range((end_date - start_date).days * 24)]
 
@@ -77,7 +77,9 @@ for broker in brokers:
                     balance_id=balance_record.id,
                     symbol=symbol,
                     quantity=quantity,
-                    latest_price=latest_price
+                    latest_price=latest_price,
+                    broker=broker,  # Include broker attribute
+                    strategy=strategy  # Include strategy attribute
                 )
                 session.add(position_record)
                 session.commit()
