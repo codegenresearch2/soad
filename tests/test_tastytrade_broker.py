@@ -7,13 +7,15 @@ class TestTastytradeBroker(unittest.TestCase):
     def setUp(self):
         self.broker = TastytradeBroker('api_key', 'secret_key')
 
-    @patch('brokers.tastytrade_broker.requests.post')
-    def test_connect(self, mock_post):
+    def mock_connect(self, mock_post):
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {'data': {'session-token': 'token'}}
         mock_post.return_value = mock_response
 
+    @patch('brokers.tastytrade_broker.requests.post')
+    def test_connect(self, mock_post):
+        self.mock_connect(mock_post)
         self.broker.connect()
         self.assertTrue(hasattr(self.broker, 'session_token'))
         self.assertTrue(hasattr(self.broker, 'headers'))
@@ -22,10 +24,7 @@ class TestTastytradeBroker(unittest.TestCase):
     @patch('brokers.tastytrade_broker.requests.post')
     def test_get_account_info(self, mock_post, mock_get):
         self.setUp()  # Reset the broker instance
-        mock_connect_response = MagicMock()
-        mock_connect_response.status_code = 200
-        mock_connect_response.json.return_value = {'data': {'session-token': 'token'}}
-        mock_post.return_value = mock_connect_response
+        self.mock_connect(mock_post)
 
         mock_account_info_response = MagicMock()
         mock_account_info_response.json.return_value = {
@@ -46,10 +45,7 @@ class TestTastytradeBroker(unittest.TestCase):
     @patch('brokers.tastytrade_broker.requests.post')
     def test_place_order(self, mock_post_place_order, mock_get_account_info, mock_post_connect):
         self.setUp()  # Reset the broker instance
-        mock_connect_response = MagicMock()
-        mock_connect_response.status_code = 200
-        mock_connect_response.json.return_value = {'data': {'session-token': 'token'}}
-        mock_post_connect.return_value = mock_connect_response
+        self.mock_connect(mock_post_connect)
 
         mock_account_info_response = MagicMock()
         mock_account_info_response.json.return_value = {
