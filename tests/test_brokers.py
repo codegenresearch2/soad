@@ -56,12 +56,12 @@ class MockBroker(BaseBroker):
         session.commit()
 
 class TestTrading(unittest.TestCase):
-    @patch('brokers.base_broker.requests.get')
-    @patch('brokers.base_broker.requests.post')
-    def test_execute_trade(self, mock_post, mock_get):
-        # Mock the session
-        mock_session = MagicMock()
+    def setUp(self):
+        self.mock_session = MagicMock()
 
+    @patch('requests.post')
+    @patch('requests.get')
+    def test_execute_trade_updates_trade_and_balance(self, mock_get, mock_post):
         # Example trade data
         trade_data = {
             'symbol': 'AAPL',
@@ -79,14 +79,14 @@ class TestTrading(unittest.TestCase):
 
         # Execute the trade
         broker = MockBroker('api_key', 'secret_key', 'E*TRADE')
-        broker.execute_trade(mock_session, trade_data)
+        broker.execute_trade(self.mock_session, trade_data)
 
         # Verify the trade was inserted
-        trade = mock_session.query(Trade).filter_by(symbol='AAPL').first()
+        trade = self.mock_session.query(Trade).filter_by(symbol='AAPL').first()
         self.assertIsNotNone(trade)
 
         # Verify the balance was updated
-        balance = mock_session.query(Balance).filter_by(broker='E*TRADE', strategy='SMA').first()
+        balance = self.mock_session.query(Balance).filter_by(broker='E*TRADE', strategy='SMA').first()
         self.assertIsNotNone(balance)
         self.assertEqual(balance.total_balance, 1510.0)
 
