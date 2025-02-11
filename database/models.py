@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, create_engine, 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
+from sqlalchemy import PrimaryKeyConstraint, ForeignKeyConstraint
 
 Base = declarative_base()
 
@@ -20,6 +21,7 @@ class Trade(Base):
     strategy = Column(String, nullable=True)
     profit_loss = Column(Float, nullable=True)
     success = Column(String, nullable=True)
+    balance_id = Column(Integer, ForeignKey('balances.id'))
 
 class AccountInfo(Base):
     __tablename__ = 'account_info'
