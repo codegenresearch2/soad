@@ -2,11 +2,25 @@ from flask import Flask, jsonify, render_template, request
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo, Balance, Position
-from flask_cors import CORS
 import os
 
-app = Flask("TradingAPI")
-CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
+app = Flask("TradingAPI", template_folder='ui/templates')
+
+@app.route('/position_page')
+def positions():
+    try:
+        return render_template('positions.html')
+    except Exception as e:
+        app.logger.error(f"Error rendering positions.html: {e}")
+        return "Internal Server Error", 500
+
+@app.route('/')
+def index():
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        app.logger.error(f"Error rendering index.html: {e}")
+        return "Internal Server Error", 500
 
 @app.route('/trades_per_strategy')
 def trades_per_strategy():
@@ -65,28 +79,28 @@ def trade_success_rate():
 
     return jsonify({"trade_success_rate": success_rate_by_strategy_and_broker})
 
-@app.route('/positions')
+@app.route('/positions', methods=['GET'])
 def get_positions():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
 
-    query = app.session.query(Position)
+    query = app.session.query(Position, Balance).join(Balance, Position.balance_id == Balance.id)
 
     if brokers:
-        query = query.filter(Position.broker.in_(brokers))
+        query = query.filter(Balance.broker.in_(brokers))
     if strategies:
-        query = query.filter(Position.strategy.in_(strategies))
+        query = query.filter(Balance.strategy.in_(strategies))
 
     positions = query.all()
     positions_data = []
-    for position in positions:
+    for position, balance in positions:
         positions_data.append({
-            'broker': position.broker,
-            'strategy': position.strategy,
+            'broker': balance.broker,
+            'strategy': balance.strategy,
             'symbol': position.symbol,
             'quantity': position.quantity,
             'latest_price': position.latest_price,
-            'timestamp': position.last_updated,
+            'timestamp': balance.timestamp
         })
 
     return jsonify({'positions': positions_data})
