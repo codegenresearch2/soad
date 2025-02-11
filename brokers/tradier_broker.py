@@ -9,8 +9,8 @@ class TradierBroker(BaseBroker):
         super().__init__(api_key, secret_key, 'Tradier', engine=engine, **kwargs)
         self.base_url = 'https://api.tradier.com/v1'
         self.headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Accept": "application/json"
+            "Authorization": f"Bearer {self.api_key}",
+            "Accept": "application/json"
         }
         self.order_timeout = 1
         self.auto_cancel_orders = True
