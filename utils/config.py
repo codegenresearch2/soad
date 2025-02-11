@@ -8,9 +8,9 @@ from strategies.constant_percentage_strategy import ConstantPercentageStrategy
 
 # Mapping of broker types to their constructors
 BROKER_MAP = {
-    'tradier': lambda config, engine: TradierBroker(api_key=config['api_key'], secret_key=None, engine=engine, prevent_day_trading=config.get('prevent_day_trading', False)),
-    'etrade': lambda config, engine: EtradeBroker(api_key=config['api_key'], secret_key=config.get('secret_key', None), engine=engine, prevent_day_trading=config.get('prevent_day_trading', False)),
-    'tastytrade': lambda config, engine: TastytradeBroker(api_key=config['api_key'], secret_key=config.get('secret_key', None), engine=engine, prevent_day_trading=config.get('prevent_day_trading', False))
+    'tradier': lambda config, engine: TradierBroker(api_key=config['api_key'], secret_key=None, engine=engine),
+    'etrade': lambda config, engine: EtradeBroker(api_key=config['api_key'], secret_key=config.get('secret_key', None), engine=engine),
+    'tastytrade': lambda config, engine: TastytradeBroker(api_key=config['api_key'], secret_key=config.get('secret_key', None), engine=engine)
 }
 
 # Mapping of strategy types to their constructors
@@ -49,7 +49,7 @@ def parse_config(config_path):
 
 def initialize_brokers(config):
     # Create a single database engine for all brokers
-    engine = create_engine(config.get('database', {'url': 'sqlite:///default_trading_system.db'})['url']) if 'database' in config else create_engine('sqlite:///default_trading_system.db')
+    engine = create_engine(config.get('database', {'url': 'sqlite:///default_trading_system.db'})['url'])
     
     brokers = {}
     for broker_name, broker_config in config['brokers'].items():
@@ -59,8 +59,9 @@ def initialize_brokers(config):
     return brokers
 
 def initialize_strategies(brokers, config):
+    strategies_config = config['strategies']
     strategies = []
-    for strategy_config in config['strategies']:
+    for strategy_config in strategies_config:
         strategy_type = strategy_config['type']
         broker_name = strategy_config['broker']
         broker = brokers[broker_name]
