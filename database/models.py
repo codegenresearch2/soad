@@ -1,6 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, create_engine, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime
 
 Base = declarative_base()
@@ -53,6 +52,9 @@ class Position(Base):
 
     balance = relationship("Balance", back_populates="positions")
 
-def drop_then_init_db(engine):
-    Base.metadata.drop_all(engine)  # Drop existing tables
-    Base.metadata.create_all(engine)  # Create new tables
+def init_db(engine):
+    Base.metadata.create_all(engine)  # Create new tables without dropping existing ones
+
+# Example usage:
+# engine = create_engine('sqlite:///:memory:')
+# init_db(engine)
