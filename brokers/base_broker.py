@@ -54,11 +54,11 @@ class BaseBroker(ABC):
                 strategy=strategy,
                 success=None,
                 profit_loss=None,
-                executed_price=None  # Set explicitly
+                executed_price=None  # Set explicitly to None
             )
             session.add(trade)
             session.commit()
-            self.update_trade(trade.id, order_info, session)
+            self.update_trade(session, trade.id, order_info)
         return order_info
 
     def get_order_status(self, order_id):
@@ -66,7 +66,7 @@ class BaseBroker(ABC):
         with self.db_manager.Session() as session:
             trade = session.query(Trade).filter_by(id=order_id).first()
             if trade:
-                self.update_trade(trade.id, order_status, session)
+                self.update_trade(session, trade.id, order_status)
         return order_status
 
     def cancel_order(self, order_id):
@@ -74,18 +74,21 @@ class BaseBroker(ABC):
         with self.db_manager.Session() as session:
             trade = session.query(Trade).filter_by(id=order_id).first()
             if trade:
-                self.update_trade(trade.id, cancel_status, session)
+                self.update_trade(session, trade.id, cancel_status)
         return cancel_status
 
     def get_options_chain(self, symbol, expiration_date):
         return self._get_options_chain(symbol, expiration_date)
 
-    def update_trade(self, trade_id, order_info, session):
+    def update_trade(self, session, trade_id, order_info):
         trade = session.query(Trade).filter_by(id=trade_id).first()
         if not trade:
             return
 
-        executed_price = order_info.get('filled_price', trade.price)  # Use correct key
+        executed_price = order_info.get('filled_price', trade.price)
+        if executed_price is None:
+            executed_price = trade.price
+
         profit_loss = self.db_manager.calculate_profit_loss(trade)
         success = "success" if profit_loss > 0 else "failure"
 
