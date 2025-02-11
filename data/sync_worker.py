@@ -1,3 +1,5 @@
+# Corrected code snippet with removed invalid syntax
+
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
