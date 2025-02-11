@@ -3,7 +3,7 @@ import time
 from datetime import datetime, timedelta
 from database.models import init_db
 from ui.app import create_app
-from utils.config import parse_config, initialize_brokers
+from utils.config import parse_config, initialize_brokers, initialize_strategies
 from sqlalchemy import create_engine
 
 def start_trading_system(config_path):
@@ -14,16 +14,15 @@ def start_trading_system(config_path):
     brokers = initialize_brokers(config)
     
     # Initialize the database
-    engine = create_engine(config['database']['url'])
+    engine = create_engine(config['database']['url'] if 'database' in config and 'url' in config['database'] else 'sqlite:///default_trading_system.db')
     init_db(engine)
+    
+    # Initialize the strategies
+    strategies = initialize_strategies(brokers, config)
     
     # Connect to each broker
     for broker in brokers.values():
         broker.connect()
-    
-    # Initialize the strategies
-    # (Assuming the strategies initialization logic is similar to the gold code)
-    # ...
     
     # Execute the strategies loop
     rebalance_intervals = [timedelta(minutes=s.rebalance_interval_minutes) for s in strategies]
@@ -45,8 +44,13 @@ def start_api_server(config_path=None):
         # Initialize the database
         engine = create_engine(config['database']['url'])
         init_db(engine)
+        # Initialize the strategies
+        strategies = initialize_strategies(brokers, config)
     else:
         config = {}
+        brokers = {}
+        engine = create_engine('sqlite:///default_trading_system.db')
+        strategies = []
     
     app = create_app(engine)
     app.run(host="0.0.0.0", port=8000, debug=True)
