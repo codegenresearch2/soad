@@ -40,12 +40,13 @@ def start_trading_system(config_path):
 
 def start_api_server(config_path=None, local_testing=False):
     # Initialize the brokers
-    brokers = initialize_brokers(parse_config(config_path)) if config_path else {}
+    config = parse_config(config_path) if config_path else {}
+    brokers = initialize_brokers(config)
 
     # Initialize the database engine
     engine = create_engine('sqlite:///default_trading_system.db')
-    if local_testing and config_path and 'database' in parse_config(config_path) and 'url' in parse_config(config_path)['database']:
-        engine = create_engine(parse_config(config_path)['database']['url'])
+    if local_testing and config_path:
+        engine = create_engine(config['database']['url'])
 
     # Initialize the database
     init_db(engine)
