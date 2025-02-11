@@ -68,13 +68,7 @@ class MockBroker(BaseBroker):
 class TestTrading(BaseTest):
     def setUp(self):
         super().setUp()  # Call the setup from BaseTest
-
-        # Additional setup
-        additional_fake_trades = [
-            Trade(symbol='MSFT', quantity=8, price=200.0, executed_price=202.0, order_type='buy', status='executed', timestamp=datetime.utcnow(), broker='Tastytrade', strategy='RSI', profit_loss=16.0, success='yes'),
-        ]
-        self.session.add_all(additional_fake_trades)
-        self.session.commit()
+        self.broker = MockBroker('api_key', 'secret_key', 'E*TRADE', engine=self.engine)
 
     @patch('brokers.base_broker.BaseBroker._place_order', return_value={'status': 'filled', 'filled_price': 151.0})
     @patch('brokers.base_broker.BaseBroker._get_account_info', return_value={'profile': {'account': {'account_number': '12345', 'value': 10000.0}}})
@@ -95,8 +89,7 @@ class TestTrading(BaseTest):
         }
 
         # Execute the trade
-        broker = MockBroker('api_key', 'secret_key', 'E*TRADE', engine=self.engine)
-        broker.execute_trade(self.session, trade_data)
+        self.broker.execute_trade(self.session, trade_data)
 
         # Verify the trade was inserted
         trade = self.session.query(Trade).filter_by(symbol='AAPL').first()
