@@ -55,12 +55,16 @@ class DBManager:
             session.close()
 
     def calculate_profit_loss(self, trade):
-        if trade.executed_price is None:
+        executed_price = trade.executed_price
+        if executed_price is None:
             raise ValueError("Executed price cannot be None for profit/loss calculation.")
         if trade.order_type.lower() == 'buy':
-            return (trade.executed_price - trade.price) * trade.quantity
+            profit_loss = (executed_price - trade.price) * trade.quantity
         elif trade.order_type.lower() == 'sell':
-            return (trade.price - trade.executed_price) * trade.quantity
+            profit_loss = (trade.price - executed_price) * trade.quantity
+        else:
+            raise ValueError("Invalid order type. Must be 'buy' or 'sell'.")
+        return profit_loss
 
     def update_trade_status(self, trade_id, executed_price, success, profit_loss):
         session = self.Session()
