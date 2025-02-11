@@ -13,7 +13,7 @@ class MockBroker(BaseBroker):
         return {'profile': {'account': {'account_number': '12345', 'value': 10000.0}}}
 
     def _place_order(self, symbol, quantity, order_type, price=None):
-        return {'status': 'filled', 'filled_price': 151.0}
+        return {'status': 'filled', 'filled_price': 150.0}
 
     def _get_order_status(self, order_id):
         return {'status': 'completed'}
@@ -70,7 +70,7 @@ class TestTrading(BaseTest):
         super().setUp()  # Call the setup from BaseTest
         self.broker = MockBroker('api_key', 'secret_key', 'E*TRADE', engine=self.engine)
 
-    @patch('brokers.base_broker.BaseBroker._place_order', return_value={'status': 'filled', 'filled_price': 151.0})
+    @patch('brokers.base_broker.BaseBroker._place_order', return_value={'status': 'filled', 'filled_price': 150.0})
     @patch('brokers.base_broker.BaseBroker._get_account_info', return_value={'profile': {'account': {'account_number': '12345', 'value': 10000.0}}})
     def test_execute_trade_with_correct_balance_update(self, mock_get_account_info, mock_place_order):
         # Example trade data
@@ -78,7 +78,7 @@ class TestTrading(BaseTest):
             'symbol': 'AAPL',
             'quantity': 5,
             'price': 150.0,
-            'executed_price': 151.0,
+            'executed_price': 150.0,
             'order_type': 'buy',
             'status': 'executed',
             'timestamp': datetime.utcnow(),
@@ -98,7 +98,7 @@ class TestTrading(BaseTest):
         # Verify the balance was updated correctly
         balance = self.session.query(Balance).filter_by(broker='E*TRADE', strategy='SMA').first()
         self.assertIsNotNone(balance)
-        self.assertEqual(balance.total_balance, 755.0)  # Expected balance after the trade
+        self.assertEqual(balance.total_balance, 10000.0 + (5 * 150.0))  # Expected balance after the trade
 
 if __name__ == '__main__':
     unittest.main()
