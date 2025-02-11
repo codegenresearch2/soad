@@ -15,7 +15,7 @@ def start_trading_system(config_path):
     
     # Initialize the database engine
     engine = create_engine(config['database']['url'] if 'database' in config and 'url' in config['database'] else 'sqlite:///default_trading_system.db')
-    init_db(engine)
+    init_db(engine)  # Initialize the database
     
     # Connect to each broker
     for broker in brokers.values():
@@ -43,7 +43,7 @@ def start_api_server(config_path=None):
         brokers = initialize_brokers(config)
         # Initialize the database engine
         engine = create_engine(config['database']['url'] if 'database' in config and 'url' in config['database'] else 'sqlite:///default_trading_system.db')
-        init_db(engine)
+        init_db(engine)  # Initialize the database
     else:
         config = {}
     
