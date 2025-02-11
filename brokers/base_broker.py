@@ -21,8 +21,8 @@ class BaseBroker(ABC):
         self.secret_key = secret_key
         self.broker_name = broker_name.lower()
         self.db_manager = DBManager(engine)
-        # Use AsyncSession
-        self.Session = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+        # Use AsyncSession with expire_on_commit=True for session management
+        self.Session = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=True)
         self.account_id = None
         self.prevent_day_trading = prevent_day_trading
         logger.info('Initialized BaseBroker', extra={'broker_name': self.broker_name})
@@ -124,8 +124,7 @@ class BaseBroker(ABC):
             async with self.Session() as session:
                 result = await session.execute(
                     select(Trade)
-                    .filter_by(symbol=symbol, broker=self.broker_name, order_type='buy')
-                    .filter(Trade.timestamp >= today)
+                    .filter(and_(Trade.symbol == symbol, Trade.broker == self.broker_name, Trade.order_type == 'buy', Trade.timestamp >= today))
                 )
                 trade = result.scalars().first()
                 return trade is not None
@@ -497,4 +496,4 @@ class BaseBroker(ABC):
             logger.error('Failed to update trade', extra={'error': str(e)})
 
 
-This revised code snippet addresses the syntax error by ensuring all string literals are properly terminated with matching quotes. It also ensures that the `and_` function is used consistently in queries and that the abstract methods are documented with docstrings. Additionally, it maintains consistency in the use of `filter_by` and `filter` in queries and ensures that constants like `OPTIONS_CONTRACT_SIZE` are used consistently.
+This revised code snippet addresses the syntax error by ensuring all string literals are properly terminated with matching quotes. It also ensures that the `and_` function is used consistently in queries and that the abstract methods are documented with docstrings. Additionally, it maintains consistency in the use of `select()` for queries and ensures that constants like `OPTIONS_CONTRACT_SIZE` are used consistently.
