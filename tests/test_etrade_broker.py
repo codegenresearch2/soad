@@ -14,9 +14,8 @@ class TestEtradeBroker(unittest.TestCase):
         mock_post.return_value = mock_response
 
     @patch('brokers.etrade_broker.requests.get')
-    @patch('brokers.etrade_broker.requests.post')
-    def test_connect(self, mock_post, mock_get):
-        self.mock_connect(mock_post)
+    def test_connect(self, mock_get):
+        self.mock_connect(mock_get)
         self.broker.connect()
         self.assertTrue(hasattr(self.broker, 'auth'))
 
@@ -36,7 +35,7 @@ class TestEtradeBroker(unittest.TestCase):
     @patch('brokers.etrade_broker.requests.post')
     @patch('brokers.etrade_broker.requests.get')
     @patch('brokers.etrade_broker.requests.post')
-    def skip_test_place_order(self, mock_post_place_order, mock_get_account_info, mock_post_connect):
+    def test_place_order(self, mock_post_place_order, mock_get_account_info, mock_post_connect):
         self.mock_connect(mock_post_connect)
         mock_get_account_info.return_value = MagicMock(json=MagicMock(return_value={
             'accountListResponse': {'accounts': [{'accountId': '12345'}]}
