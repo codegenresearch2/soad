@@ -17,8 +17,8 @@ drop_then_init_db(engine)
 brokers = ['E*TRADE', 'Tradier', 'Tastytrade']
 strategies = ['SMA', 'EMA', 'RSI', 'Bollinger Bands', 'MACD', 'VWAP', 'Ichimoku']
 
-# Generate unique hourly timestamps for the past 30 days
-start_date = datetime.utcnow() - timedelta(days=30)
+# Generate unique hourly timestamps for the past 5 days
+start_date = datetime.utcnow() - timedelta(days=5)
 end_date = datetime.utcnow()
 timestamps = [start_date + timedelta(hours=i) for i in range((end_date - start_date).days * 24)]
 
@@ -82,8 +82,8 @@ for broker in brokers:
                     strategy=strategy  # Include strategy attribute
                 )
                 session.add(position_record)
-            session.commit()  # Commit position records for the current balance record
-            print(f"Inserted position records for {broker}, {strategy} at {timestamp}.")
+                session.commit()  # Commit position records for the current balance record
+                print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {quantity}, Latest price: {latest_price}")
 
 print("Fake balance data and positions generation and insertion completed.")
 
