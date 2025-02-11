@@ -36,8 +36,7 @@ class BaseBroker(ABC):
 
     def get_account_info(self):
         account_info = self._get_account_info()
-        with self.db_manager.Session() as session:
-            self.db_manager.add_account_info(session, AccountInfo(data=account_info))
+        self.db_manager.add_account_info(account_info)
         return account_info
 
     def place_order(self, symbol, quantity, order_type, strategy, price=None):
