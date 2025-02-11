@@ -30,38 +30,31 @@ class BaseBroker(ABC):
         pass
 
     @abstractmethod
-    def get_cost_basis(self, symbol):
-        """
-        Retrieve the cost basis for a specific position (symbol) from the broker.
-        """
+    def get_account_info(self):
         pass
 
     @abstractmethod
-    def _get_account_info(self):
+    def place_order(self, symbol, quantity, order_type, price=None):
         pass
 
     @abstractmethod
-    def _place_order(self, symbol, quantity, order_type, price=None):
+    def place_future_option_order(self, symbol, quantity, order_type, price=None):
         pass
 
     @abstractmethod
-    def _place_future_option_order(self, symbol, quantity, order_type, price=None):
+    def place_option_order(self, symbol, quantity, order_type, price=None):
         pass
 
     @abstractmethod
-    def _place_option_order(self, symbol, quantity, order_type, price=None):
+    def get_order_status(self, order_id):
         pass
 
     @abstractmethod
-    def _get_order_status(self, order_id):
+    def cancel_order(self, order_id):
         pass
 
     @abstractmethod
-    def _cancel_order(self, order_id):
-        pass
-
-    @abstractmethod
-    def _get_options_chain(self, symbol, expiration_date):
+    def get_options_chain(self, symbol, expiration_date):
         pass
 
     @abstractmethod
@@ -75,8 +68,8 @@ class BaseBroker(ABC):
     async def get_account_info(self):
         '''Get the account information'''
         logger.info('Getting account information')
-        try:
-            account_info = self._get_account_info()
+        try {
+            account_info = self.get_account_info()
             await self.db_manager.add_account_info(AccountInfo(
                 broker=self.broker_name, value=account_info['value']
             ))
@@ -87,7 +80,7 @@ class BaseBroker(ABC):
             return None
 
     async def has_bought_today(self, symbol):
-        try:
+        try {
             today = datetime.now().date()
             logger.info('Checking if bought today', extra={'symbol': symbol})
 
@@ -111,7 +104,7 @@ class BaseBroker(ABC):
             logger.error('Trade quantity is 0, doing nothing', extra={'trade': trade})
             return
 
-        try:
+        try {
             async with self.Session() as session:
                 # Log before querying the position
                 logger.debug(f"Querying position for symbol: {trade.symbol}, broker: {self.broker_name}, strategy: {trade.strategy}")
@@ -166,21 +159,16 @@ class BaseBroker(ABC):
 
                 # Log after committing changes
                 logger.info('Position updated', extra={'position': position})
-
+     
         except Exception as e:
             logger.error('Failed to update positions', extra={'error': str(e)})
-
 
     async def place_future_option_order(self, symbol, quantity, order_type, strategy, price=None):
         '''Place an order for a future option'''
         logger.info('Placing order', extra={
                     'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'strategy': strategy})
-        try:
-            if asyncio.iscoroutinefunction(self._place_future_option_order):
-                response = await self._place_future_option_order(symbol, quantity, order_type, price)
-            else:
-                response = self._place_future_option_order(
-                    symbol, quantity, order_type, price)
+        try {
+            response = await self.place_future_option_order(symbol, quantity, order_type, price)
             logger.info('Order placed successfully', extra={'response': response})
 
             if not price:
@@ -250,11 +238,8 @@ class BaseBroker(ABC):
             logger.error('Day trading is not allowed. Cannot sell positions opened today.', extra={'symbol': symbol})
             return None
 
-        try:
-            if asyncio.iscoroutinefunction(self._place_option_order):
-                response = await self._place_option_order(symbol, quantity, order_type, price)
-            else:
-                response = self._place_option_order(symbol, quantity, order_type, price)
+        try {
+            response = await self.place_option_order(symbol, quantity, order_type, price)
             logger.info('Order placed successfully', extra={'response': response})
 
             if not price:
@@ -317,11 +302,8 @@ class BaseBroker(ABC):
             logger.error('Day trading is not allowed. Cannot sell positions opened today.', extra={'symbol': symbol})
             return None
 
-        try:
-            if asyncio.iscoroutinefunction(self._place_order):
-                response = await self._place_order(symbol, quantity, order_type, price)
-            else:
-                response = self._place_order(symbol, quantity, order_type, price)
+        try {
+            response = await self.place_order(symbol, quantity, order_type, price)
             logger.info('Order placed successfully', extra={'response': response})
 
             trade = Trade(
@@ -375,8 +357,8 @@ class BaseBroker(ABC):
     async def get_order_status(self, order_id):
         '''Get the status of an order'''
         logger.info('Retrieving order status', extra={'order_id': order_id})
-        try:
-            order_status = self._get_order_status(order_id)
+        try {
+            order_status = self.get_order_status(order_id)
             async with self.Session() as session:
                 trade = await session.execute(session.query(Trade).filter_by(id=order_id))
                 trade = trade.scalars().first()
@@ -391,8 +373,8 @@ class BaseBroker(ABC):
     async def cancel_order(self, order_id):
         '''Cancel an order'''
         logger.info('Cancelling order', extra={'order_id': order_id})
-        try:
-            cancel_status = self._cancel_order(order_id)
+        try {
+            cancel_status = self.cancel_order(order_id)
             async with self.Session() as session:
                 trade = await session.execute(session.query(Trade).filter_by(id=order_id))
                 trade = trade.scalars().first()
@@ -412,8 +394,8 @@ class BaseBroker(ABC):
     def get_options_chain(self, symbol, expiration_date):
         '''Get the options chain for a symbol'''
         logger.info('Retrieving options chain', extra={'symbol': symbol, 'expiration_date': expiration_date})
-        try:
-            options_chain = self._get_options_chain(symbol, expiration_date)
+        try {
+            options_chain = self.get_options_chain(symbol, expiration_date)
             logger.info('Options chain retrieved', extra={'options_chain': options_chain})
             return options_chain
         except Exception as e:
@@ -422,7 +404,7 @@ class BaseBroker(ABC):
 
     async def update_trade(self, session, trade_id, order_info):
         '''Update the trade with the order information'''
-        try:
+        try {
             trade = await session.execute(session.query(Trade).filter_by(id=trade_id))
             trade = trade.scalars().first()
             if not trade:
