@@ -27,48 +27,17 @@ class MockBroker(BaseBroker):
     def get_current_price(self, symbol):
         return 150.0
 
-    def execute_trade(self, session, trade_data):
-        # Day trading prevention logic
-        if trade_data['quantity'] > 5:
-            raise ValueError("Day trading limit exceeded")
-
-        # Place the order
-        order_info = self._place_order(trade_data['symbol'], trade_data['quantity'], trade_data['order_type'], trade_data['price'])
-
-        # Insert the trade into the database
-        trade = Trade(
-            symbol=trade_data['symbol'],
-            quantity=trade_data['quantity'],
-            price=trade_data['price'],
-            executed_price=order_info['filled_price'],
-            order_type=trade_data['order_type'],
-            status=trade_data['status'],
-            timestamp=trade_data['timestamp'],
-            broker=trade_data['broker'],
-            strategy=trade_data['strategy'],
-            profit_loss=trade_data['profit_loss'],
-            success=trade_data['success']
-        )
-        session.add(trade)
-        session.commit()
-
-        # Update the balance
-        balance = session.query(Balance).filter_by(broker=trade_data['broker'], strategy=trade_data['strategy']).first()
-        if balance:
-            balance.total_balance += trade_data['quantity'] * order_info['filled_price']
-        else:
-            balance = Balance(
-                broker=trade_data['broker'],
-                strategy=trade_data['strategy'],
-                total_balance=trade_data['quantity'] * order_info['filled_price']
-            )
-            session.add(balance)
-        session.commit()
-
 class TestTrading(BaseTest):
     def setUp(self):
         super().setUp()  # Call the setup from BaseTest
         self.broker = MockBroker('api_key', 'secret_key', 'E*TRADE', engine=self.engine)
+
+        # Additional setup for fake trades
+        additional_fake_trades = [
+            Trade(symbol='MSFT', quantity=8, price=200.0, executed_price=202.0, order_type='buy', status='executed', timestamp=datetime.utcnow(), broker='Tastytrade', strategy='RSI', profit_loss=16.0, success='yes'),
+        ]
+        self.session.add_all(additional_fake_trades)
+        self.session.commit()
 
     @patch('brokers.base_broker.BaseBroker._place_order', return_value={'status': 'filled', 'filled_price': 150.0})
     @patch('brokers.base_broker.BaseBroker._get_account_info', return_value={'profile': {'account': {'account_number': '12345', 'value': 10000.0}}})
