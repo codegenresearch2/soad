@@ -6,7 +6,7 @@ import os
 from flask_cors import CORS
 
 app = Flask("TradingAPI", template_folder='ui/templates')
-CORS(app)  # Enable CORS for all routes
+CORS(app, origins=["http://localhost:3000"])  # Restrict CORS to a specific origin
 
 @app.route('/position_page')
 def positions():
@@ -52,9 +52,6 @@ def historic_balance_per_strategy():
                 "total_balance": total_balance
             })
         return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
-    except Exception as e:
-        app.logger.error(f"Error fetching historical balance data: {e}")
-        return jsonify({"error": "Failed to fetch historical balance data"}), 500
     finally:
         app.session.close()
 
