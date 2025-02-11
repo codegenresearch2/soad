@@ -39,23 +39,6 @@ class TastytradeBroker(BaseBroker):
         formatted_symbol = f"{underlying:<6}{rest_of_symbol}"
         return formatted_symbol
 
-    async def get_option_chain(self, underlying_symbol):
-        """
-        Fetch the option chain for a given underlying symbol.
-
-        Args:
-            underlying_symbol: The underlying symbol for which to fetch the option chain.
-
-        Returns:
-            An OptionChain object containing the option chain data.
-        """
-        try:
-            option_chain = await NestedOptionChain.get(self.session, underlying_symbol)
-            return option_chain
-        except Exception as e:
-            logger.error(f"Error fetching option chain for {underlying_symbol}: {e}")
-            return None
-
     def connect(self):
         logger.info('Connecting to Tastytrade API')
         auth_data = {
@@ -331,3 +314,15 @@ class TastytradeBroker(BaseBroker):
                 return { "bid": quote.bidPrice, "ask": quote.askPrice }
             finally:
                 await streamer.close()
+
+    def get_cost_basis(self, symbol):
+        logger.info('Retrieving cost basis for symbol', extra={'symbol': symbol})
+        try:
+            response = requests.get(f"{self.base_url}/accounts/{self.account_id}/positions/{symbol}/cost_basis", headers=self.headers)
+            response.raise_for_status()
+            cost_basis = response.json().get('data')
+            logger.info('Cost basis retrieved', extra={'cost_basis': cost_basis})
+            return cost_basis
+        except requests.RequestException as e:
+            logger.error('Failed to retrieve cost basis', extra={'error': str(e)})
+            return None
