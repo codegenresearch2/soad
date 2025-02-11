@@ -10,6 +10,9 @@ def start_trading_system(config_path):
     # Parse the configuration file
     config = parse_config(config_path)
     
+    # Initialize the brokers
+    brokers = initialize_brokers(config)
+    
     # Initialize the database engine
     engine = None
     if 'database' in config and 'url' in config['database']:
@@ -19,13 +22,6 @@ def start_trading_system(config_path):
     
     # Initialize the database
     init_db(engine)
-    
-    # Initialize the brokers
-    brokers = initialize_brokers(config)
-    
-    # Connect to each broker
-    for broker in brokers.values():
-        broker.connect()
     
     # Initialize the strategies
     strategies = initialize_strategies(brokers, config)
@@ -45,6 +41,11 @@ def start_trading_system(config_path):
 def start_api_server(config_path=None):
     config = parse_config(config_path) if config_path else {}
     
+    # Initialize the brokers only if config_path is provided
+    brokers = {}
+    if config_path:
+        brokers = initialize_brokers(config)
+    
     # Initialize the database engine
     engine = None
     if 'database' in config and 'url' in config['database']:
@@ -54,11 +55,6 @@ def start_api_server(config_path=None):
     
     # Initialize the database
     init_db(engine)
-    
-    # Initialize the brokers only if config_path is provided
-    brokers = {}
-    if config_path:
-        brokers = initialize_brokers(config)
     
     # Initialize the strategies
     strategies = initialize_strategies(brokers, config) if brokers else []
