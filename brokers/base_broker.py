@@ -45,7 +45,7 @@ class BaseBroker(ABC):
             trade = Trade(
                 symbol=symbol,
                 quantity=quantity,
-                price=price,  # Directly use the price parameter
+                price=price if price is not None else 0,  # Handle None values by setting to 0
                 order_type=order_type,
                 status=order_info.get('status', 'unknown'),
                 timestamp=datetime.now(),
@@ -57,6 +57,7 @@ class BaseBroker(ABC):
             )
             session.add(trade)
             session.commit()
+            self.update_trade(session, trade.id, order_info)
             return order_info
 
     def get_order_status(self, order_id):
@@ -81,8 +82,7 @@ class BaseBroker(ABC):
     def update_trade(self, session, trade_id, order_info):
         trade = session.query(Trade).filter_by(id=trade_id).first()
         if not trade:
-            session.close()
-            return
+            return  # Do not close the session if trade is not found
 
         executed_price = order_info.get('filled_price', trade.price)  # Use 'filled_price' from order_info
         profit_loss = self.db_manager.calculate_profit_loss(trade)
