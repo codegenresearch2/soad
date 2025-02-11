@@ -53,7 +53,7 @@ class BaseBroker(ABC):
                 strategy=strategy,
                 success=None,
                 profit_loss=None,
-                executed_price=None  # Set initially to None
+                executed_price=price  # Set initially to the price parameter
             )
             session.add(trade)
             session.commit()
@@ -84,7 +84,7 @@ class BaseBroker(ABC):
         if not trade:
             return  # Do not close the session if trade is not found
 
-        executed_price = order_info.get('filled_price', trade.price)  # Use 'filled_price' from order_info
+        executed_price = order_info.get('filled_price', trade.executed_price)  # Use 'filled_price' from order_info or fallback to trade's executed_price
         profit_loss = self.db_manager.calculate_profit_loss(trade)
         success = "success" if profit_loss > 0 else "failure"
 
@@ -92,7 +92,3 @@ class BaseBroker(ABC):
         trade.success = success
         trade.profit_loss = profit_loss
         session.commit()
-
-    @abstractmethod
-    def get_current_price(self, symbol):
-        pass
