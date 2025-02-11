@@ -7,11 +7,11 @@ class TestEtradeBroker(unittest.TestCase):
     def setUp(self):
         self.broker = EtradeBroker('api_key', 'secret_key')
 
-    def mock_connect(self, mock_get):
+    def mock_connect(self, mock_post):
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {'data': {'session-token': 'token'}}
-        mock_get.return_value = mock_response
+        mock_post.return_value = mock_response
 
     @patch('brokers.etrade_broker.requests.get')
     def test_connect(self, mock_get):
@@ -22,7 +22,7 @@ class TestEtradeBroker(unittest.TestCase):
     @patch('brokers.etrade_broker.requests.get')
     @patch('brokers.etrade_broker.requests.post')
     def test_get_account_info(self, mock_post, mock_get):
-        self.mock_connect(mock_get)
+        self.mock_connect(mock_post)
         mock_response = MagicMock()
         mock_response.json.return_value = {
             'accountListResponse': {'accounts': [{'accountId': '12345'}]}
@@ -40,7 +40,10 @@ class TestEtradeBroker(unittest.TestCase):
     @patch('brokers.etrade_broker.requests.get')
     @patch('brokers.etrade_broker.requests.post')
     def test_place_order(self, mock_post_place_order, mock_get_account_info, mock_post_connect):
-        self.mock_connect(mock_get_account_info)
+        self.mock_connect(mock_post_connect)
+        mock_get_account_info.return_value = {
+            'accountListResponse': {'accounts': [{'accountId': '12345'}]}
+        }
         mock_response = MagicMock()
         mock_response.json.return_value = {'status': 'filled', 'filled_price': 155.00}
         mock_post_place_order.return_value = mock_response
@@ -53,7 +56,7 @@ class TestEtradeBroker(unittest.TestCase):
     @patch('brokers.etrade_broker.requests.get')
     @patch('brokers.etrade_broker.requests.post')
     def test_get_order_status(self, mock_post_connect, mock_get):
-        self.mock_connect(mock_get)
+        self.mock_connect(mock_post_connect)
         mock_response = MagicMock()
         mock_response.json.return_value = {'status': 'completed'}
         mock_get.return_value = mock_response
