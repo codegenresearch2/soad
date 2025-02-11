@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, create_engine, ForeignKey, PrimaryKeyConstraint, ForeignKeyConstraint
+from sqlalchemy import Column, Integer, String, Float, DateTime, create_engine, ForeignKey, PrimaryKeyConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
@@ -30,7 +30,7 @@ class AccountInfo(Base):
 
 class Balance(Base):
     __tablename__ = 'balances'
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     broker = Column(String, nullable=False)
     strategy = Column(String, nullable=True)
     balance = Column(Float, default=0.0)
@@ -38,9 +38,6 @@ class Balance(Base):
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
     trades = relationship('Trade', backref='balance')
     positions = relationship("Position", back_populates="balance")
-    __table_args__ = (
-        PrimaryKeyConstraint('id', 'broker', 'type', name='pk_balances'),
-    )
 
 class Position(Base):
     __tablename__ = 'positions'
