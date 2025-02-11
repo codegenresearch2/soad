@@ -29,7 +29,7 @@ class ConstantPercentageStrategy(BaseStrategy):
             target_balance = target_investment_balance * allocation
             current_position = current_positions.get(stock, 0)
             current_price = self.broker.get_current_price(stock)
-            target_quantity = int(target_balance // current_price)
+            target_quantity = target_balance // current_price
             if current_position < target_quantity:
                 self.broker.place_order(stock, target_quantity - current_position, 'buy', self.strategy_name)
             elif current_position > target_quantity:
