@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, logging
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo, Balance, Position
@@ -22,7 +22,7 @@ def positions():
         return render_template('positions.html')
     except Exception as e:
         app.logger.error(f"Error rendering positions.html: {e}")
-        return jsonify({"error": "Internal Server Error"}), 500
+        return "Internal Server Error", 500
 
 @app.route('/')
 def index():
@@ -30,7 +30,7 @@ def index():
         return render_template('index.html')
     except Exception as e:
         app.logger.error(f"Error rendering index.html: {e}")
-        return jsonify({"error": "Internal Server Error"}), 500
+        return "Internal Server Error", 500
 
 @app.route('/trades_per_strategy')
 def trades_per_strategy():
@@ -40,7 +40,7 @@ def trades_per_strategy():
         return jsonify({"trades_per_strategy": trades_count_serializable})
     except Exception as e:
         app.logger.error(f"Error fetching trades per strategy: {e}")
-        return jsonify({"error": "Failed to fetch trades per strategy"}), 500
+        return "Failed to fetch trades per strategy", 500
 
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 def historic_balance_per_strategy():
@@ -66,7 +66,7 @@ def historic_balance_per_strategy():
         return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
     except Exception as e:
         app.logger.error(f"Error fetching historic balance per strategy: {e}")
-        return jsonify({"error": "Failed to fetch historic balance per strategy"}), 500
+        return "Failed to fetch historic balance per strategy", 500
     finally:
         app.session.close()
 
@@ -78,7 +78,7 @@ def account_values():
         return jsonify({"account_values": accounts_data})
     except Exception as e:
         app.logger.error(f"Error fetching account values: {e}")
-        return jsonify({"error": "Failed to fetch account values"}), 500
+        return "Failed to fetch account values", 500
 
 @app.route('/trade_success_rate')
 def trade_success_rate():
@@ -102,7 +102,7 @@ def trade_success_rate():
         return jsonify({"trade_success_rate": success_rate_by_strategy_and_broker})
     except Exception as e:
         app.logger.error(f"Error fetching trade success rate: {e}")
-        return jsonify({"error": "Failed to fetch trade success rate"}), 500
+        return "Failed to fetch trade success rate", 500
 
 @app.route('/positions', methods=['GET'])
 def get_positions():
@@ -132,7 +132,7 @@ def get_positions():
         return jsonify({'positions': positions_data})
     except Exception as e:
         app.logger.error(f"Error fetching positions: {e}")
-        return jsonify({"error": "Failed to fetch positions"}), 500
+        return "Failed to fetch positions", 500
 
 def create_app(engine):
     app = Flask("TradingAPI", template_folder='ui/templates')
