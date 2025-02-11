@@ -14,8 +14,8 @@ session = Session()
 drop_then_init_db(engine)
 
 # Define brokers and strategies
-brokers = ['Tradier', 'Tastytrade']
-strategies = ['RSI', 'Bollinger Bands', 'MACD', 'Ichimoku']
+brokers = ['E*TRADE', 'Tradier', 'Tastytrade']
+strategies = ['SMA', 'EMA', 'RSI', 'Bollinger Bands', 'MACD', 'VWAP', 'Ichimoku']
 
 # Generate unique hourly timestamps for the past 30 days
 start_date = datetime.utcnow() - timedelta(days=5)
@@ -30,7 +30,7 @@ print("Generating fake trade data...")
 for timestamp in timestamps:
     for _ in range(num_trades_per_hour):
         fake_trades.append(Trade(
-           symbol=random.choice(['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']),
+            symbol=random.choice(['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']),
             quantity=random.randint(1, 20),
             price=random.uniform(100, 3000),
             executed_price=random.uniform(100, 3000),
@@ -54,46 +54,35 @@ print("Fake trades inserted into the database.")
 print("Generating and inserting fake balance data and positions...")
 for broker in brokers:
     for strategy in strategies:
-        initial_cash_balance = random.uniform(5000, 20000)
-        initial_position_balance = random.uniform(5000, 20000)
+        initial_balance = random.uniform(5000, 20000)
         for timestamp in timestamps:
-            cash_balance = initial_cash_balance + random.uniform(-1000, 1000)  # Simulate some profit/loss for cash
-            position_balance = initial_position_balance + random.uniform(-1000, 1000)  # Simulate some profit/loss for positions
-            cash_balance_record = Balance(
+            total_balance = initial_balance + random.uniform(-1000, 1000)  # Simulate some profit/loss
+            balance_record = Balance(
                 broker=broker,
                 strategy=strategy,
-                type='cash',
-                balance=cash_balance,
+                initial_balance=initial_balance,
+                total_balance=total_balance,
                 timestamp=timestamp
             )
-            position_balance_record = Balance(
-                broker=broker,
-                strategy=strategy,
-                type='positions',
-                balance=position_balance,
-                timestamp=timestamp
-            )
-            session.add(cash_balance_record)
-            session.add(position_balance_record)
+            session.add(balance_record)
             session.commit()  # Commit each balance record individually
-            initial_cash_balance = cash_balance  # Update the initial balance for the next timestamp
-            initial_position_balance = position_balance  # Update the initial balance for the next timestamp
-            print(f"Inserted balance records for {broker}, {strategy} at {timestamp}. Cash balance: {cash_balance}, Position balance: {position_balance}")
+            initial_balance = total_balance  # Update the initial balance for the next timestamp
+            print(f"Inserted balance record for {broker}, {strategy} at {timestamp}. Total balance: {total_balance}")
 
             # Generate and insert fake positions for each balance record
-        for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
-            quantity = random.randint(1, 100)
-            latest_price = random.uniform(100, 3000)
-            position_record = Position(
-                broker=broker,
-                strategy=strategy,
-                symbol=symbol,
-                quantity=quantity,
-                latest_price=latest_price
-            )
-            session.add(position_record)
-            session.commit()
-            print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {quantity}, Latest price: {latest_price}")
+            for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
+                quantity = random.randint(1, 100)
+                latest_price = random.uniform(100, 3000)
+                position_record = Position(
+                    broker=broker,
+                    strategy=strategy,
+                    symbol=symbol,
+                    quantity=quantity,
+                    latest_price=latest_price
+                )
+                session.add(position_record)
+                session.commit()
+                print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {quantity}, Latest price: {latest_price}")
 
 print("Fake balance data and positions generation and insertion completed.")
 
@@ -109,4 +98,3 @@ print("Inserting fake account data into the database...")
 session.add_all(fake_accounts)
 session.commit()
 print("Fake account data inserted into the database.")
-
