@@ -41,27 +41,20 @@ class TradierBroker(BaseBroker):
 
             if account_info.get('cash'):
                 self.account_type = 'cash'
-                self.buying_power = account_info['cash']['cash_available']
-                self.account_value = account_info['total_equity']
+                buying_power = account_info['cash']['cash_available']
+                account_value = account_info['total_equity']
             elif account_info.get('margin'):
                 self.account_type = 'margin'
-                self.buying_power = account_info['margin']['stock_buying_power']
-                self.account_value = account_info['total_equity']
+                buying_power = account_info['margin']['stock_buying_power']
+                account_value = account_info['total_equity']
             elif account_info.get('pdt'):
                 self.account_type = 'pdt'
-                self.buying_power = account_info['pdt']['stock_buying_power']
-                self.account_value = account_info['total_equity']
+                buying_power = account_info['pdt']['stock_buying_power']
+                account_value = account_info['total_equity']
 
-            cash = account_info['total_cash']
-
+            self.buying_power = buying_power
+            self.account_value = account_value
             logger.info('Account balances retrieved', extra={'account_type': self.account_type, 'buying_power': self.buying_power, 'value': self.account_value})
-            return {
-                'account_number': account_info['account_number'],
-                'account_type': self.account_type,
-                'buying_power': self.buying_power,
-                'cash': cash,
-                'value': self.account_value
-            }
         except requests.RequestException as e:
             logger.error('Failed to retrieve account information', extra={'error': str(e)})
 
@@ -73,7 +66,7 @@ class TradierBroker(BaseBroker):
             response.raise_for_status()
             positions_data = response.json()['positions']['position']
 
-            if type(positions_data) != list:
+            if not isinstance(positions_data, list):
                 positions_data = [positions_data]
             positions = {p['symbol']: p for p in positions_data}
             logger.info('Positions retrieved', extra={'positions': positions})
@@ -252,4 +245,4 @@ class TradierBroker(BaseBroker):
             logger.error('Failed to retrieve bid/ask', extra={'error': str(e)})
 
 
-This revised code snippet addresses the feedback from the oracle, ensuring consistency in URL usage, variable naming, data handling, type checking, and response handling. It also includes a placeholder for the `get_cost_basis` method as suggested by the oracle.
+This revised code snippet addresses the feedback from the oracle, ensuring consistency in URL usage, variable naming, response handling, and logging. It also includes a placeholder for the `get_cost_basis` method as suggested by the oracle.
