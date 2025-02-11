@@ -5,6 +5,9 @@ from brokers.base_broker import BaseBroker
 from database.models import Trade, Balance
 
 class MockBroker(BaseBroker):
+    def __init__(self, api_key, secret_key, broker_name, engine):
+        super().__init__(api_key, secret_key, broker_name, engine)
+
     def connect(self):
         pass
 
@@ -56,8 +59,24 @@ class MockBroker(BaseBroker):
         session.commit()
 
 class TestTrading(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.engine = create_engine('sqlite:///:memory:')
+        init_db(cls.engine)
+        cls.Session = sessionmaker(bind=cls.engine)
+
     def setUp(self):
-        self.mock_session = MagicMock()
+        self.session = self.Session()
+        # Additional setup for fake trades
+        fake_trades = [
+            Trade(symbol='MSFT', quantity=8, price=200.0, executed_price=202.0, order_type='buy', status='executed', timestamp=datetime.utcnow(), broker='Tastytrade', strategy='RSI', profit_loss=16.0, success='yes'),
+        ]
+        self.session.add_all(fake_trades)
+        self.session.commit()
+
+    def tearDown(self):
+        self.session.rollback()
+        self.session.close()
 
     @patch('requests.post')
     @patch('requests.get')
@@ -78,15 +97,15 @@ class TestTrading(unittest.TestCase):
         }
 
         # Execute the trade
-        broker = MockBroker('api_key', 'secret_key', 'E*TRADE')
-        broker.execute_trade(self.mock_session, trade_data)
+        broker = MockBroker('api_key', 'secret_key', 'E*TRADE', self.engine)
+        broker.execute_trade(self.session, trade_data)
 
         # Verify the trade was inserted
-        trade = self.mock_session.query(Trade).filter_by(symbol='AAPL').first()
+        trade = self.session.query(Trade).filter_by(symbol='AAPL').first()
         self.assertIsNotNone(trade)
 
         # Verify the balance was updated
-        balance = self.mock_session.query(Balance).filter_by(broker='E*TRADE', strategy='SMA').first()
+        balance = self.session.query(Balance).filter_by(broker='E*TRADE', strategy='SMA').first()
         self.assertIsNotNone(balance)
         self.assertEqual(balance.total_balance, 1510.0)
 
