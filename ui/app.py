@@ -12,12 +12,24 @@ CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
 
 @app.route('/trades_per_strategy', methods=['GET'])
 def trades_per_strategy():
+    """
+    Get the count of trades per strategy and broker.
+    
+    Returns:
+        JSON: A JSON object containing the count of trades per strategy and broker.
+    """
     trades_count = app.session.query(Trade.strategy, Trade.broker, func.count(Trade.id)).group_by(Trade.strategy, Trade.broker).all()
     trades_count_serializable = [{"strategy": strategy, "broker": broker, "count": count} for strategy, broker, count in trades_count]
     return jsonify({"trades_per_strategy": trades_count_serializable})
 
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 def historic_balance_per_strategy():
+    """
+    Get the historic balance per strategy and broker.
+    
+    Returns:
+        JSON: A JSON object containing the historic balance per strategy and broker.
+    """
     try:
         historical_balances = app.session.query(
             Balance.strategy,
@@ -43,12 +55,24 @@ def historic_balance_per_strategy():
 
 @app.route('/account_values', methods=['GET'])
 def account_values():
+    """
+    Get the values of all accounts.
+    
+    Returns:
+        JSON: A JSON object containing the account values.
+    """
     accounts = app.session.query(AccountInfo).all()
     accounts_data = {account.broker: account.value for account in accounts}
     return jsonify({"account_values": accounts_data})
 
 @app.route('/trade_success_rate', methods=['GET'])
 def trade_success_rate():
+    """
+    Get the success rate of trades per strategy and broker.
+    
+    Returns:
+        JSON: A JSON object containing the success rate of trades per strategy and broker.
+    """
     strategies_and_brokers = app.session.query(Trade.strategy, Trade.broker).distinct().all()
     success_rate_by_strategy_and_broker = []
 
@@ -69,6 +93,12 @@ def trade_success_rate():
 
 @app.route('/positions', methods=['GET'])
 def get_positions():
+    """
+    Get the positions for specific brokers and strategies.
+    
+    Returns:
+        JSON: A JSON object containing the positions.
+    """
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
 
@@ -95,6 +125,12 @@ def get_positions():
 
 @app.route('/trades', methods=['GET'])
 def get_trades():
+    """
+    Get the trades for specific brokers and strategies.
+    
+    Returns:
+        JSON: A JSON object containing the trades.
+    """
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
 
@@ -121,6 +157,12 @@ def get_trades():
 
 @app.route('/trade_stats', methods=['GET'])
 def get_trade_stats():
+    """
+    Get the statistical analysis of trades.
+    
+    Returns:
+        JSON: A JSON object containing the statistical analysis of trades.
+    """
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
 
@@ -165,6 +207,12 @@ def get_trade_stats():
 
 @app.route('/var', methods=['GET'])
 def get_var():
+    """
+    Get the Value at Risk (VaR) of trades.
+    
+    Returns:
+        JSON: A JSON object containing the VaR.
+    """
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
 
@@ -189,6 +237,12 @@ def get_var():
 
 @app.route('/max_drawdown', methods=['GET'])
 def get_max_drawdown():
+    """
+    Get the maximum drawdown of trades.
+    
+    Returns:
+        JSON: A JSON object containing the maximum drawdown.
+    """
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
 
@@ -213,6 +267,12 @@ def get_max_drawdown():
 
 @app.route('/sharpe_ratio', methods=['GET'])
 def get_sharpe_ratio():
+    """
+    Get the Sharpe ratio of trades.
+    
+    Returns:
+        JSON: A JSON object containing the Sharpe ratio.
+    """
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
 
@@ -236,6 +296,15 @@ def get_sharpe_ratio():
     return jsonify({'sharpe_ratio': sharpe_ratio})
 
 def create_app(engine):
+    """
+    Create and configure the Flask app with the given SQLAlchemy engine.
+    
+    Args:
+        engine (sqlalchemy.engine.Engine): The SQLAlchemy engine to use for database operations.
+    
+    Returns:
+        Flask: The configured Flask app.
+    """
     Session = sessionmaker(bind=engine)
     app.session = Session()
     return app
