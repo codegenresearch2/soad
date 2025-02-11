@@ -2,8 +2,28 @@ import unittest
 from unittest.mock import patch, MagicMock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from datetime import datetime
 from database.models import Trade, Balance, init_db
 from brokers.base_broker import BaseBroker
+
+class BaseTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.engine = create_engine('sqlite:///:memory:')
+        init_db(cls.engine)
+        cls.Session = sessionmaker(bind=cls.engine)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.Session.close_all()
+        cls.engine.dispose()
+
+    def setUp(self):
+        self.session = self.Session()
+
+    def tearDown(self):
+        self.session.rollback()
+        self.session.close()
 
 class MockBroker(BaseBroker):
     def __init__(self, api_key, secret_key, broker_name):
@@ -42,7 +62,7 @@ class MockBroker(BaseBroker):
             executed_price=trade_data['executed_price'],
             order_type=trade_data['order_type'],
             status=trade_data['status'],
-            timestamp=trade_data['timestamp'],
+            timestamp=datetime.utcnow(),
             broker=trade_data['broker'],
             strategy=trade_data['strategy'],
             profit_loss=trade_data['profit_loss'],
@@ -63,26 +83,7 @@ class MockBroker(BaseBroker):
             session.add(balance)
         session.commit()
 
-class TestTrading(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.engine = create_engine('sqlite:///:memory:')
-        init_db(cls.engine)
-        cls.Session = sessionmaker(bind=cls.engine)
-
-    def setUp(self):
-        self.session = self.Session()
-        # Additional setup for fake trades
-        fake_trades = [
-            Trade(symbol='MSFT', quantity=8, price=200.0, executed_price=202.0, order_type='buy', status='executed', timestamp=datetime.utcnow(), broker='Tastytrade', strategy='RSI', profit_loss=16.0, success='yes'),
-        ]
-        self.session.add_all(fake_trades)
-        self.session.commit()
-
-    def tearDown(self):
-        self.session.rollback()
-        self.session.close()
-
+class TestTrading(BaseTest):
     @patch('requests.post')
     @patch('requests.get')
     def test_execute_trade_updates_trade_and_balance(self, mock_get, mock_post):
@@ -94,7 +95,6 @@ class TestTrading(unittest.TestCase):
             'executed_price': 151.0,
             'order_type': 'buy',
             'status': 'executed',
-            'timestamp': datetime.utcnow(),
             'broker': 'E*TRADE',
             'strategy': 'SMA',
             'profit_loss': 10.0,
@@ -108,6 +108,7 @@ class TestTrading(unittest.TestCase):
         # Verify the trade was inserted
         trade = self.session.query(Trade).filter_by(symbol='AAPL').first()
         self.assertIsNotNone(trade)
+        self.assertEqual(trade.executed_price, 151.0)
 
         # Verify the balance was updated
         balance = self.session.query(Balance).filter_by(broker='E*TRADE', strategy='SMA').first()
