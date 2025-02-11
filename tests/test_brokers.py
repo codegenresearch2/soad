@@ -1,12 +1,17 @@
 import unittest
-from datetime import datetime
 from unittest.mock import patch, MagicMock
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from database.models import Trade, Balance, init_db
 from brokers.base_broker import BaseBroker
-from database.models import Trade, Balance
 
 class MockBroker(BaseBroker):
-    def __init__(self, api_key, secret_key, broker_name, engine):
-        super().__init__(api_key, secret_key, broker_name, engine)
+    def __init__(self, api_key, secret_key, broker_name):
+        self.api_key = api_key
+        self.secret_key = secret_key
+        self.broker_name = broker_name
+        self.engine = MagicMock()
+        self.session = MagicMock()
 
     def connect(self):
         pass
@@ -97,7 +102,7 @@ class TestTrading(unittest.TestCase):
         }
 
         # Execute the trade
-        broker = MockBroker('api_key', 'secret_key', 'E*TRADE', self.engine)
+        broker = MockBroker('api_key', 'secret_key', 'E*TRADE')
         broker.execute_trade(self.session, trade_data)
 
         # Verify the trade was inserted
