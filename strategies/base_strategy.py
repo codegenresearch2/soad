@@ -20,7 +20,8 @@ class BaseStrategy(ABC):
         with self.broker.Session() as session:
             strategy_balance = session.query(Balance).filter_by(
                 strategy=self.strategy_name,
-                broker=self.broker.broker_name
+                broker=self.broker.broker_name,
+                type='cash'
             ).first()
 
             if strategy_balance is None:
