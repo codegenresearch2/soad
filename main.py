@@ -15,7 +15,8 @@ def start_trading_system(config_path):
     
     # Initialize the database engine
     database_config = config.get('database', {})
-    engine = create_engine(database_config.get('url', 'sqlite:///default_trading_system.db'))
+    engine_url = database_config.get('url', 'sqlite:///default_trading_system.db')
+    engine = create_engine(engine_url)
     init_db(engine)
     
     # Connect to each broker
