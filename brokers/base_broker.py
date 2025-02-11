@@ -83,10 +83,9 @@ class BaseBroker(ABC):
     def update_trade(self, trade_id, order_info, session):
         trade = session.query(Trade).filter_by(id=trade_id).first()
         if not trade:
-            session.close()
             return
 
-        executed_price = order_info.get('executed_price', trade.price)  # Fallback to order price if executed_price not available
+        executed_price = order_info.get('filled_price', trade.price)  # Use correct key
         profit_loss = self.db_manager.calculate_profit_loss(trade)
         success = "success" if profit_loss > 0 else "failure"
 
