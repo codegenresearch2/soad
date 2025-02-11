@@ -20,7 +20,7 @@ class Trade(Base):
     strategy = Column(String, nullable=False)
     profit_loss = Column(Float, nullable=True)
     success = Column(String, nullable=True)
-    balance_id = Column(Integer, ForeignKey('balances.id'), nullable=False)
+    balance_id = Column(Integer, ForeignKey('balances.id'), nullable=True)
 
 class AccountInfo(Base):
     __tablename__ = 'account_info'
@@ -62,6 +62,6 @@ def init_db(engine):
 
 
 Changes made based on the feedback:
-1. **Nullable Foreign Key**: Changed `nullable=False` to `nullable=True` in the `balance_id` column of the `Position` class.
-2. **Consistency in Comments**: Updated the comments in `drop_then_init_db` and `init_db` functions to provide more descriptive comments.
-3. **Formatting and Style**: Ensured the code adheres to PEP 8 guidelines, including spacing, line lengths, and comment styles.
+1. **Nullable Foreign Key**: Changed `nullable=False` to `nullable=True` in the `balance_id` column of the `Trade` class.
+2. **Comment Consistency**: Updated the comments in `drop_then_init_db` and `init_db` functions to provide more descriptive comments.
+3. **PEP 8 Compliance**: Ensured the code adheres to PEP 8 guidelines, including spacing and line lengths.
