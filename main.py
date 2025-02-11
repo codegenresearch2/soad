@@ -11,14 +11,18 @@ def start_trading_system(config_path):
     config = parse_config(config_path)
     
     # Initialize the brokers
-    brokers = initialize_brokers(config) if config_path else {}
+    brokers = initialize_brokers(config)
     
     # Initialize the database engine
     engine = create_engine(config['database']['url']) if 'database' in config and 'url' in config['database'] else create_engine('sqlite:///default_trading_system.db')
     init_db(engine)
     
+    # Connect to each broker
+    for broker in brokers.values():
+        broker.connect()
+    
     # Initialize the strategies
-    strategies = initialize_strategies(brokers, config) if brokers else []
+    strategies = initialize_strategies(brokers, config)
     
     # Execute the strategies loop
     rebalance_intervals = [timedelta(minutes=s.rebalance_interval_minutes) for s in strategies]
