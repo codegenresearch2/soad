@@ -3,11 +3,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo, Balance, Position
 import os
+from flask_cors import CORS
 
 app = Flask("TradingAPI", template_folder='ui/templates')
-
-# CORS Configuration
-from flask_cors import CORS
 CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
 
 @app.route('/position_page')
@@ -54,6 +52,8 @@ def historic_balance_per_strategy():
         return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    finally:
+        app.session.close()
 
 @app.route('/account_values')
 def account_values():
