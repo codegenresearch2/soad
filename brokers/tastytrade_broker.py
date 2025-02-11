@@ -12,19 +12,7 @@ from tastytrade.dxfeed import EventType
 from tastytrade.order import NewOrder, OrderAction, OrderTimeInForce, OrderType, PriceEffect, OrderStatus
 
 class TastytradeBroker(BaseBroker):
-    """
-    A class representing a broker that integrates with the Tastytrade API.
-    """
     def __init__(self, username, password, engine, **kwargs):
-        """
-        Initializes the TastytradeBroker instance.
-        
-        Args:
-            username (str): The username for Tastytrade API authentication.
-            password (str): The password for Tastytrade API authentication.
-            engine (str): The engine type for the broker.
-            **kwargs: Additional keyword arguments.
-        """
         super().__init__(username, password, 'Tastytrade', engine=engine, **kwargs)
         self.base_url = 'https://api.tastytrade.com'
         self.username = username
@@ -42,15 +30,6 @@ class TastytradeBroker(BaseBroker):
 
     @staticmethod
     def format_option_symbol(option_symbol):
-        """
-        Formats the option symbol to match the Tastytrade API requirements.
-        
-        Args:
-            option_symbol (str): The option symbol to format.
-        
-        Returns:
-            str: The formatted option symbol.
-        """
         match = re.match(r'^([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d{8})$', option_symbol)
         if not match:
             raise ValueError("Invalid option symbol format")
@@ -61,15 +40,6 @@ class TastytradeBroker(BaseBroker):
         return formatted_symbol
 
     async def get_option_chain(self, underlying_symbol):
-        """
-        Fetches the option chain for a given underlying symbol.
-        
-        Args:
-            underlying_symbol (str): The underlying symbol for which to fetch the option chain.
-        
-        Returns:
-            OptionChain: The option chain data.
-        """
         try:
             option_chain = await NestedOptionChain.get(self.session, underlying_symbol)
             return option_chain
@@ -78,9 +48,6 @@ class TastytradeBroker(BaseBroker):
             return None
 
     def connect(self):
-        """
-        Connects to the Tastytrade API.
-        """
         logger.info('Connecting to Tastytrade API')
         auth_data = {
             "login": self.username,
@@ -92,20 +59,10 @@ class TastytradeBroker(BaseBroker):
         auth_response = response.json().get('data')
         self.auth = auth_response['session-token']
         self.headers["Authorization"] = self.auth
-        # Refresh the session
         self.session = Session(self.username, self.password)
         logger.info('Connected to Tastytrade API')
 
     def _get_account_info(self, retry=True):
-        """
-        Retrieves account information from the Tastytrade API.
-        
-        Args:
-            retry (bool): Whether to retry the request if it fails.
-        
-        Returns:
-            dict: The account information.
-        """
         logger.info('Retrieving account information')
         try:
             response = requests.get(f"{self.base_url}/customers/me/accounts", headers=self.headers)
@@ -126,7 +83,6 @@ class TastytradeBroker(BaseBroker):
             account_value = account_data['net-liquidating-value']
             account_type = None
 
-            # TODO: is this redundant? Can we collapse/remove the above API calls?
             cash = account_data.get('cash-balance')
 
             logger.info('Account balances retrieved', extra={'account_type': account_type, 'buying_power': buying_power, 'value': account_value})
@@ -145,15 +101,6 @@ class TastytradeBroker(BaseBroker):
                 return self._get_account_info(retry=False)
 
     def get_positions(self, retry=True):
-        """
-        Retrieves the current positions from the Tastytrade API.
-        
-        Args:
-            retry (bool): Whether to retry the request if it fails.
-        
-        Returns:
-            dict: The positions data.
-        """
         logger.info('Retrieving positions')
         url = f"{self.base_url}/accounts/{self.account_id}/positions"
         try:
@@ -172,15 +119,6 @@ class TastytradeBroker(BaseBroker):
 
     @staticmethod
     def process_symbol(symbol):
-        """
-        Processes the symbol to standardize it.
-        
-        Args:
-            symbol (str): The symbol to process.
-        
-        Returns:
-            str: The processed symbol.
-        """
         if is_futures_symbol(symbol):
             return symbol
         else:
@@ -188,15 +126,6 @@ class TastytradeBroker(BaseBroker):
 
     @staticmethod
     def is_order_filled(order_response):
-        """
-        Checks if an order is filled.
-        
-        Args:
-            order_response (OrderResponse): The order response object.
-        
-        Returns:
-            bool: True if the order is filled, False otherwise.
-        """
         if order_response.order.status == OrderStatus.FILLED:
             return True
 
@@ -209,18 +138,6 @@ class TastytradeBroker(BaseBroker):
         return True
 
     async def _place_future_option_order(self, symbol, quantity, order_type, price=None):
-        """
-        Places a future option order.
-        
-        Args:
-            symbol (str): The symbol of the future option.
-            quantity (int): The quantity of the order.
-            order_type (str): The type of the order (buy or sell).
-            price (float): The price of the order.
-        
-        Returns:
-            OrderResponse: The order response object.
-        """
         ticker = extract_underlying_symbol(symbol)
         logger.info('Placing future option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
         option = FutureOption.get_future_option(self.session, symbol)
@@ -247,18 +164,6 @@ class TastytradeBroker(BaseBroker):
         return response
 
     async def _place_option_order(self, symbol, quantity, order_type, price=None):
-        """
-        Places an option order.
-        
-        Args:
-            symbol (str): The symbol of the option.
-            quantity (int): The quantity of the order.
-            order_type (str): The type of the order (buy or sell).
-            price (float): The price of the order.
-        
-        Returns:
-            OrderResponse: The order response object.
-        """
         ticker = extract_underlying_symbol(symbol)
         logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
         if ' ' not in symbol:
@@ -285,18 +190,6 @@ class TastytradeBroker(BaseBroker):
         return response
 
     async def _place_order(self, symbol, quantity, order_type, price=None):
-        """
-        Places a generic order.
-        
-        Args:
-            symbol (str): The symbol of the order.
-            quantity (int): The quantity of the order.
-            order_type (str): The type of the order (buy or sell).
-            price (float): The price of the order.
-        
-        Returns:
-            OrderResponse: The order response object.
-        """
         logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
         try:
             last_price = await self.get_current_price(symbol)
@@ -345,15 +238,6 @@ class TastytradeBroker(BaseBroker):
             return {'filled_price': None }
 
     def _get_order_status(self, order_id):
-        """
-        Retrieves the status of a specific order.
-        
-        Args:
-            order_id (str): The ID of the order.
-        
-        Returns:
-            dict: The order status data.
-        """
         logger.info('Retrieving order status', extra={'order_id': order_id})
         try:
             response = requests.get(f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}", headers=self.headers)
@@ -365,15 +249,6 @@ class TastytradeBroker(BaseBroker):
             logger.error('Failed to retrieve order status', extra={'error': str(e)})
 
     def _cancel_order(self, order_id):
-        """
-        Cancels a specific order.
-        
-        Args:
-            order_id (str): The ID of the order to cancel.
-        
-        Returns:
-            dict: The cancellation response data.
-        """
         logger.info('Cancelling order', extra={'order_id': order_id})
         try:
             response = requests.put(f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}/cancel", headers=self.headers)
@@ -385,16 +260,6 @@ class TastytradeBroker(BaseBroker):
             logger.error('Failed to cancel order', extra={'error': str(e)})
 
     def _get_options_chain(self, symbol, expiration_date):
-        """
-        Retrieves the options chain for a given symbol and expiration date.
-        
-        Args:
-            symbol (str): The symbol for which to retrieve the options chain.
-            expiration_date (str): The expiration date of the options chain.
-        
-        Returns:
-            dict: The options chain data.
-        """
         logger.info('Retrieving options chain', extra={'symbol': symbol, 'expiration_date': expiration_date})
         try:
             response = requests.get(f"{self.base_url}/markets/options/chains", params={"symbol": symbol, "expiration": expiration_date}, headers=self.headers)
@@ -406,15 +271,6 @@ class TastytradeBroker(BaseBroker):
             logger.error('Failed to retrieve options chain', extra={'error': str(e)})
 
     async def get_current_price(self, symbol):
-        """
-        Retrieves the current price of a given symbol.
-        
-        Args:
-            symbol (str): The symbol for which to retrieve the current price.
-        
-        Returns:
-            float: The current price of the symbol.
-        """
         if ':' in symbol:
             pass
         elif is_futures_symbol(symbol):
@@ -436,15 +292,6 @@ class TastytradeBroker(BaseBroker):
                 await streamer.close()
 
     async def get_bid_ask(self, symbol):
-        """
-        Retrieves the bid and ask prices for a given symbol.
-        
-        Args:
-            symbol (str): The symbol for which to retrieve the bid and ask prices.
-        
-        Returns:
-            dict: The bid and ask prices.
-        """
         if ':' in symbol:
             pass
         elif is_futures_symbol(symbol):
