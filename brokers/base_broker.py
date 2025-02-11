@@ -40,12 +40,12 @@ class BaseBroker(ABC):
         return account_info
 
     def place_order(self, symbol, quantity, order_type, strategy, price=None):
+        order_info = self._place_order(symbol, quantity, order_type, price)
         with self.db_manager.Session() as session:
-            order_info = self._place_order(symbol, quantity, order_type, price)
             trade = Trade(
                 symbol=symbol,
                 quantity=quantity,
-                price=price,  # Directly use the price parameter without fallback
+                price=price if price is not None else 0,  # Directly use the price parameter without fallback
                 order_type=order_type,
                 status=order_info.get('status', 'unknown'),
                 timestamp=datetime.now(),
@@ -58,7 +58,7 @@ class BaseBroker(ABC):
             session.add(trade)
             session.commit()
             self.update_trade(session, trade.id, order_info)
-            return order_info
+        return order_info
 
     def get_order_status(self, order_id):
         with self.db_manager.Session() as session:
@@ -66,7 +66,7 @@ class BaseBroker(ABC):
             trade = session.query(Trade).filter_by(id=order_id).first()
             if trade:
                 self.update_trade(session, trade.id, order_status)
-            return order_status
+        return order_status
 
     def cancel_order(self, order_id):
         with self.db_manager.Session() as session:
@@ -74,7 +74,7 @@ class BaseBroker(ABC):
             trade = session.query(Trade).filter_by(id=order_id).first()
             if trade:
                 self.update_trade(session, trade.id, cancel_status)
-            return cancel_status
+        return cancel_status
 
     def get_options_chain(self, symbol, expiration_date):
         return self._get_options_chain(symbol, expiration_date)
