@@ -10,6 +10,9 @@ DATABASE_URL = "sqlite:///trading.db"
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 
+# Store the session in the app object
+app.session = Session()
+
 @app.route('/position_page')
 def positions():
     try:
@@ -28,19 +31,18 @@ def index():
 
 @app.route('/trades_per_strategy')
 def trades_per_strategy():
-    session = Session()
     try:
-        trades_count = session.query(Trade.strategy, Trade.broker, func.count(Trade.id)).group_by(Trade.strategy, Trade.broker).all()
+        trades_count = app.session.query(Trade.strategy, Trade.broker, func.count(Trade.id)).group_by(Trade.strategy, Trade.broker).all()
         trades_count_serializable = [{"strategy": strategy, "broker": broker, "count": count} for strategy, broker, count in trades_count]
         return jsonify({"trades_per_strategy": trades_count_serializable})
-    finally:
-        session.close()
+    except Exception as e:
+        app.logger.error(f"Error fetching trades per strategy: {e}")
+        return jsonify({"error": "Failed to fetch trades per strategy"}), 500
 
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 def historic_balance_per_strategy():
-    session = Session()
     try:
-        historical_balances = session.query(
+        historical_balances = app.session.query(
             Balance.strategy,
             Balance.broker,
             func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
@@ -59,29 +61,29 @@ def historic_balance_per_strategy():
                 "total_balance": total_balance
             })
         return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
-    finally:
-        session.close()
+    except Exception as e:
+        app.logger.error(f"Error fetching historic balance per strategy: {e}")
+        return jsonify({"error": "Failed to fetch historic balance per strategy"}), 500
 
 @app.route('/account_values')
 def account_values():
-    session = Session()
     try:
-        accounts = session.query(AccountInfo).all()
+        accounts = app.session.query(AccountInfo).all()
         accounts_data = {account.broker: account.value for account in accounts}
         return jsonify({"account_values": accounts_data})
-    finally:
-        session.close()
+    except Exception as e:
+        app.logger.error(f"Error fetching account values: {e}")
+        return jsonify({"error": "Failed to fetch account values"}), 500
 
 @app.route('/trade_success_rate')
 def trade_success_rate():
-    session = Session()
     try:
-        strategies_and_brokers = session.query(Trade.strategy, Trade.broker).distinct().all()
+        strategies_and_brokers = app.session.query(Trade.strategy, Trade.broker).distinct().all()
         success_rate_by_strategy_and_broker = []
 
         for strategy, broker in strategies_and_brokers:
-            total_trades = session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker).scalar()
-            successful_trades = session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker, Trade.profit_loss > 0).scalar()
+            total_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker).scalar()
+            successful_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker, Trade.profit_loss > 0).scalar()
             failed_trades = total_trades - successful_trades
 
             success_rate_by_strategy_and_broker.append({
@@ -93,17 +95,17 @@ def trade_success_rate():
             })
 
         return jsonify({"trade_success_rate": success_rate_by_strategy_and_broker})
-    finally:
-        session.close()
+    except Exception as e:
+        app.logger.error(f"Error fetching trade success rate: {e}")
+        return jsonify({"error": "Failed to fetch trade success rate"}), 500
 
 @app.route('/positions', methods=['GET'])
 def get_positions():
-    session = Session()
     try:
         brokers = request.args.getlist('brokers[]')
         strategies = request.args.getlist('strategies[]')
 
-        query = session.query(Position, Balance).join(Balance, Position.balance_id == Balance.id)
+        query = app.session.query(Position, Balance).join(Balance, Position.balance_id == Balance.id)
 
         if brokers:
             query = query.filter(Balance.broker.in_(brokers))
@@ -123,8 +125,9 @@ def get_positions():
             })
 
         return jsonify({'positions': positions_data})
-    finally:
-        session.close()
+    except Exception as e:
+        app.logger.error(f"Error fetching positions: {e}")
+        return jsonify({"error": "Failed to fetch positions"}), 500
 
 def create_app():
     return app
