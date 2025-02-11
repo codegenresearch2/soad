@@ -22,7 +22,7 @@ def positions():
         return render_template('positions.html')
     except Exception as e:
         app.logger.error(f"Error rendering positions.html: {e}")
-        return "Internal Server Error", 500
+        return jsonify({"error": "Internal Server Error"}), 500
 
 @app.route('/')
 def index():
@@ -30,7 +30,7 @@ def index():
         return render_template('index.html')
     except Exception as e:
         app.logger.error(f"Error rendering index.html: {e}")
-        return "Internal Server Error", 500
+        return jsonify({"error": "Internal Server Error"}), 500
 
 @app.route('/trades_per_strategy')
 def trades_per_strategy():
