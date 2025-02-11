@@ -55,8 +55,16 @@ class TradierBroker(BaseBroker):
             self.buying_power = buying_power
             self.account_value = account_value
             logger.info('Account balances retrieved', extra={'account_type': self.account_type, 'buying_power': self.buying_power, 'value': self.account_value})
+            return {
+                'account_number': self.account_id,
+                'account_type': self.account_type,
+                'buying_power': float(buying_power),
+                'cash': float(account_info.get('cash', 0)),
+                'value': float(account_value)
+            }
         except requests.RequestException as e:
             logger.error('Failed to retrieve account information', extra={'error': str(e)})
+            return None
 
     def get_positions(self):
         logger.info('Retrieving positions')
