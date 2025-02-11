@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo, Balance, Position
@@ -50,8 +50,6 @@ def historic_balance_per_strategy():
                 "balance": balance
             })
         return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
     finally:
         app.session.close()
 
@@ -109,7 +107,7 @@ def get_positions():
     if brokers:
         query = query.filter(Position.broker.in_(brokers))
     if strategies:
-        query = query.filter(Position.strategy.in_(strategories))
+        query = query.filter(Position.strategy.in_(strategies))
 
     positions = query.all()
     positions_data = []
