@@ -10,12 +10,18 @@ def start_trading_system(config_path):
     # Parse the configuration file
     config = parse_config(config_path)
     
+    # Initialize the database engine
+    engine = None
+    if 'database' in config and 'url' in config['database']:
+        engine = create_engine(config['database']['url'])
+    else:
+        engine = create_engine('sqlite:///default_trading_system.db')
+    
+    # Initialize the database
+    init_db(engine)
+    
     # Initialize the brokers
     brokers = initialize_brokers(config)
-    
-    # Initialize the database engine
-    engine = create_engine(config['database']['url']) if 'database' in config and 'url' in config['database'] else create_engine('sqlite:///default_trading_system.db')
-    init_db(engine)  # Initialize the database after creating the engine
     
     # Connect to each broker
     for broker in brokers.values():
@@ -39,12 +45,20 @@ def start_trading_system(config_path):
 def start_api_server(config_path=None):
     config = parse_config(config_path) if config_path else {}
     
-    # Initialize the brokers only if config_path is provided
-    brokers = initialize_brokers(config) if config_path else {}
-    
     # Initialize the database engine
-    engine = create_engine(config['database']['url']) if 'database' in config and 'url' in config['database'] else create_engine('sqlite:///default_trading_system.db')
-    init_db(engine)  # Initialize the database after creating the engine
+    engine = None
+    if 'database' in config and 'url' in config['database']:
+        engine = create_engine(config['database']['url'])
+    else:
+        engine = create_engine('sqlite:///default_trading_system.db')
+    
+    # Initialize the database
+    init_db(engine)
+    
+    # Initialize the brokers only if config_path is provided
+    brokers = {}
+    if config_path:
+        brokers = initialize_brokers(config)
     
     # Initialize the strategies
     strategies = initialize_strategies(brokers, config) if brokers else []
