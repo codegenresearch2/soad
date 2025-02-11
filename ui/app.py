@@ -3,7 +3,6 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo, Balance, Position
 from flask_cors import CORS
-import os
 
 app = Flask("TradingAPI", template_folder='ui/templates')
 CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
@@ -24,9 +23,12 @@ def index():
 
 @app.route('/trades_per_strategy')
 def trades_per_strategy():
-    trades_count = app.session.query(Trade.strategy, Trade.broker, func.count(Trade.id)).group_by(Trade.strategy, Trade.broker).all()
-    trades_count_serializable = [{"strategy": strategy, "broker": broker, "count": count} for strategy, broker, count in trades_count]
-    return jsonify({"trades_per_strategy": trades_count_serializable})
+    try:
+        trades_count = app.session.query(Trade.strategy, Trade.broker, func.count(Trade.id)).group_by(Trade.strategy, Trade.broker).all()
+        trades_count_serializable = [{"strategy": strategy, "broker": broker, "count": count} for strategy, broker, count in trades_count]
+        return jsonify({"trades_per_strategy": trades_count_serializable})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 def historic_balance_per_strategy():
@@ -87,29 +89,32 @@ def trade_success_rate():
 
 @app.route('/positions', methods=['GET'])
 def get_positions():
-    brokers = request.args.getlist('brokers[]')
-    strategies = request.args.getlist('strategies[]')
+    try:
+        brokers = request.args.getlist('brokers[]')
+        strategies = request.args.getlist('strategies[]')
 
-    query = app.session.query(Position)
+        query = app.session.query(Position)
 
-    if brokers:
-        query = query.filter(Position.broker.in_(brokers))
-    if strategies:
-        query = query.filter(Position.strategy.in_(strategies))
+        if brokers:
+            query = query.filter(Position.broker.in_(brokers))
+        if strategies:
+            query = query.filter(Position.strategy.in_(strategies))
 
-    positions = query.all()
-    positions_data = []
-    for position in positions:
-        positions_data.append({
-            'broker': position.broker,
-            'strategy': position.strategy,
-            'symbol': position.symbol,
-            'quantity': position.quantity,
-            'latest_price': position.latest_price,
-            'timestamp': position.last_updated
-        })
+        positions = query.all()
+        positions_data = []
+        for position in positions:
+            positions_data.append({
+                'broker': position.broker,
+                'strategy': position.strategy,
+                'symbol': position.symbol,
+                'quantity': position.quantity,
+                'latest_price': position.latest_price,
+                'timestamp': position.last_updated
+            })
 
-    return jsonify({'positions': positions_data})
+        return jsonify({'positions': positions_data})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 def create_app(engine):
     Session = sessionmaker(bind=engine)
