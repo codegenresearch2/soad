@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from database.db_manager import DBManager
 from database.models import Trade, AccountInfo
 from datetime import datetime
+import json
 
 class BaseBroker(ABC):
     def __init__(self, api_key, secret_key, brokerage_name):
@@ -36,7 +37,10 @@ class BaseBroker(ABC):
 
     def get_account_info(self):
         account_info = self._get_account_info()
-        self.db_manager.add_account_info(account_info)
+        with self.db_manager.Session() as session:
+            account_info_obj = AccountInfo(data=json.dumps(account_info))
+            session.add(account_info_obj)
+            session.commit()
         return account_info
 
     def place_order(self, symbol, quantity, order_type, strategy, price=None):
