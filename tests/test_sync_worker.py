@@ -1,368 +1,324 @@
-from datetime import datetime, timezone
-
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock, ANY
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-
-from data.sync_worker import PositionService, BalanceService, BrokerService, _get_async_engine, _run_sync_worker_iteration, _fetch_and_update_positions, _reconcile_brokers_and_update_balances
+import asyncio
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import select
+from datetime import datetime
+from utils.logger import logger
+from utils.utils import is_option, extract_option_details
 from database.models import Position, Balance
-
-# Mock data for testing
-MOCK_POSITIONS = [
-    Position(symbol='AAPL', broker='tradier', latest_price=0, last_updated=datetime.now(), underlying_volatility=None),
-    Position(symbol='GOOG', broker='tastytrade', latest_price=0, last_updated=datetime.now(), underlying_volatility=None),
-]
-
-MOCK_BALANCE = Balance(broker='tradier', strategy='RSI', type='cash', balance=10000.0, timestamp=datetime.now())
+import yfinance as yf
+import sqlalchemy
 
 
-@pytest.mark.asyncio
-async def test_update_position_prices_and_volatility():
-    # Mock the broker service
-    mock_broker_service = AsyncMock()
-    mock_broker_instance = AsyncMock()
-    mock_broker_instance.get_latest_price = AsyncMock(return_value=150.0)
-    mock_broker_instance.get_cost_basis = MagicMock(return_value=100.0)  # Synchronous function
+class BrokerService:
+    def __init__(self, brokers):
+        self.brokers = brokers
 
-    # Mock get_broker_instance to return the mock broker instance
-    mock_broker_service.get_broker_instance = AsyncMock(return_value=mock_broker_instance)
+    async def get_broker_instance(self, broker_name):
+        logger.debug(f'Fetching broker instance for {broker_name}')
+        return await self._fetch_broker_instance(broker_name)
 
-    # Initialize PositionService with the mocked broker service
-    position_service = PositionService(mock_broker_service)
+    async def _fetch_broker_instance(self, broker_name):
+        return self.brokers[broker_name]
 
-    # Mock session and positions
-    mock_session = AsyncMock(spec=AsyncSession)  # Ensure we are using AsyncSession
-    mock_positions = MOCK_POSITIONS
+    async def get_latest_price(self, broker_name, symbol):
+        broker_instance = await self.get_broker_instance(broker_name)
+        return await self._fetch_price(broker_instance, symbol)
 
-    # Test the method
-    timestamp = datetime.now(timezone.utc)
-    await position_service.update_position_prices_and_volatility(mock_session, mock_positions, timestamp)
+    async def get_account_info(self, broker_name):
+        broker_instance = await self.get_broker_instance(broker_name)
+        return await broker_instance.get_account_info()
 
-    # Assert that the broker service was called to get the latest price for each position
-    mock_broker_service.get_latest_price.assert_any_call('tradier', 'AAPL')
-    mock_broker_service.get_latest_price.assert_any_call('tastytrade', 'GOOG')
-
-    mock_broker_instance.get_cost_basis.assert_any_call('AAPL')
-    mock_broker_instance.get_cost_basis.assert_any_call('GOOG')
-
-    # Assert that the session commit was called
-    assert mock_session.commit.called
-
-@pytest.fixture
-def broker_service():
-    brokers = {
-        'mock_broker': MagicMock()
-    }
-    return BrokerService(brokers)
+    async def _fetch_price(self, broker_instance, symbol):
+        if asyncio.iscoroutinefunction(broker_instance.get_current_price):
+            return await broker_instance.get_current_price(symbol)
+        return broker_instance.get_current_price(symbol)
 
 
-@pytest.fixture
-def position_service(broker_service):
-    return PositionService(broker_service)
+class PositionService:
+    def __init__(self, broker_service):
+        self.broker_service = broker_service
+
+    async def reconcile_positions(self, session, broker, timestamp=None):
+        now = timestamp or datetime.now()
+        broker_positions, db_positions = await self._get_positions(session, broker)
+        await self._remove_db_positions(session, broker, db_positions, broker_positions)
+        await self._add_missing_positions(session, broker, db_positions, broker_positions, now)
+        session.add_all(db_positions.values())  # Add updated positions to the session
+        await session.commit()
+        logger.info(f"Reconciliation for broker {broker} completed.")
+
+    async def _get_positions(self, session, broker):
+        broker_instance = await self.broker_service.get_broker_instance(broker)
+        broker_positions = broker_instance.get_positions()
+        db_positions = await self._fetch_db_positions(session, broker)
+        return broker_positions, db_positions
+
+    async def _fetch_db_positions(self, session, broker):
+        db_positions_result = await session.execute(select(Position).filter_by(broker=broker))
+        return {pos.symbol: pos for pos in db_positions_result.scalars().all()}
+
+    async def _remove_db_positions(self, session, broker, db_positions, broker_positions):
+        broker_symbols = set(broker_positions.keys())
+        db_symbols = set(db_positions.keys())
+        symbols_to_remove = db_symbols - broker_symbols
+        if symbols_to_remove:
+            await session.execute(
+                sqlalchemy.delete(Position).where(Position.broker == broker, Position.symbol.in_(symbols_to_remove))
+            )
+            logger.info(f"Removed positions from DB for broker {broker}: {symbols_to_remove}")
+
+    async def _add_missing_positions(self, session, broker, db_positions, broker_positions, now):
+        for symbol, broker_position in broker_positions.items():
+            if symbol in db_positions:
+                existing_position = db_positions[symbol]
+                self._update_existing_position(existing_position, broker_position, now)
+            else:
+                self._insert_new_position(session, broker, broker_position, now)
+
+    def _update_existing_position(self, existing_position, broker_position, now):
+        existing_position.quantity = broker_position['quantity']
+        existing_position.last_updated = now
+        logger.info(f"Updated existing position: {existing_position.symbol}")
+
+    def _insert_new_position(self, session, broker, broker_position, now):
+        new_position = Position(
+            broker=broker,
+            strategy='uncategorized',
+            symbol=broker_position['symbol'],
+            quantity=broker_position['quantity'],
+            last_updated=now,
+        )
+        session.add(new_position)
+        logger.info(f"Added uncategorized position to DB: {new_position.symbol}")
+
+    async def update_position_cost_basis(self, session, position, broker_instance):
+        """
+        Fetch and update the cost basis for a position.
+        """
+        logger.debug(f'Fetching cost basis for {position.symbol}')
+        try:
+            cost_basis = broker_instance.get_cost_basis(position.symbol)
+            if cost_basis is not None:
+                position.cost_basis = cost_basis
+                logger.info(f'Updated cost basis for {position.symbol}: {cost_basis}')
+                session.add(position)
+            else:
+                logger.error(f'Failed to retrieve cost basis for {position.symbol}')
+        except Exception as e:
+            logger.error(f'Error updating cost basis for {position.symbol}: {e}')
+
+    async def update_position_prices_and_volatility(self, session, positions, timestamp):
+        now_naive = self._strip_timezone(timestamp or datetime.now())
+        await self._update_prices_and_volatility(session, positions, now_naive)
+        await session.commit()
+        logger.info('Completed updating latest prices and volatility')
+
+    def _strip_timezone(self, timestamp):
+        return timestamp.replace(tzinfo=None)
+
+    async def update_cost_basis(self, session, position):
+        broker_instance = await self.broker_service.get_broker_instance(position.broker)
+        await self.update_position_cost_basis(session, position, broker_instance)
+
+    async def _update_prices_and_volatility(self, session, positions, now_naive):
+        for position in positions:
+            try:
+                await self._update_position_price(session, position, now_naive)
+                await self.update_cost_basis(session, position)
+            except Exception:
+                logger.exception(f"Error processing position {position.symbol}")
+
+    async def _update_position_price(self, session, position, now_naive):
+        latest_price = await self._fetch_and_log_price(position)
+        if not latest_price:
+            return
+
+        position.latest_price, position.last_updated = latest_price, now_naive
+        underlying_symbol = self._get_underlying_symbol(position)
+        await self._update_volatility_and_underlying_price(session, position, underlying_symbol)
+
+    async def _fetch_and_log_price(self, position):
+        latest_price = await self.broker_service.get_latest_price(position.broker, position.symbol)
+        if latest_price is None:
+            logger.error(f'Could not get latest price for {position.symbol}')
+        else:
+            logger.debug(f'Updated latest price for {position.symbol} to {latest_price}')
+        return latest_price
+
+    async def _update_volatility_and_underlying_price(self, session, position, underlying_symbol):
+        latest_underlying_price = await self.broker_service.get_latest_price(position.broker, underlying_symbol)
+        volatility = await self._calculate_historical_volatility(underlying_symbol)
+
+        if volatility is not None:
+            position.underlying_volatility = float(volatility)
+            position.underlying_latest_price = float(latest_underlying_price)
+            logger.debug(f'Updated volatility for {position.symbol} to {volatility}')
+        else:
+            logger.error(f'Could not calculate volatility for {underlying_symbol}')
+        session.add(position)
+
+    @staticmethod
+    def _get_underlying_symbol(position):
+        return extract_option_details(position.symbol)[0] if is_option(position.symbol) else position.symbol
+
+    @staticmethod
+    async def _calculate_historical_volatility(symbol):
+        logger.debug(f'Calculating historical volatility for {symbol}')
+        try:
+            stock = yf.Ticker(symbol)
+            hist = stock.history(period="1y")
+            hist['returns'] = hist['Close'].pct_change()
+            return hist['returns'].std() * (252 ** 0.5)
+        except Exception as e:
+            logger.error(f'Error calculating volatility for {symbol}: {e}')
+            return None
 
 
-@pytest.fixture
-def balance_service(broker_service):
-    return BalanceService(broker_service)
+class BalanceService:
+    def __init__(self, broker_service):
+        self.broker_service = broker_service
+
+    async def update_all_strategy_balances(self, session, broker, timestamp):
+        strategies = await self._get_strategies(session, broker)
+        await self._update_each_strategy_balance(session, broker, strategies, timestamp)
+        await self.update_uncategorized_balances(session, broker, timestamp)
+        await session.commit()
+        logger.info(f"Updated all strategy balances for broker {broker}")
+
+    async def _get_strategies(self, session, broker):
+        strategies_result = await session.execute(
+            select(Balance.strategy).filter_by(broker=broker).distinct().where(Balance.strategy != 'uncategorized')
+        )
+        return strategies_result.scalars().all()
+
+    async def _update_each_strategy_balance(self, session, broker, strategies, timestamp):
+        for strategy in strategies:
+            await self.update_strategy_balance(session, broker, strategy, timestamp)
+
+    async def update_strategy_balance(self, session, broker, strategy, timestamp):
+        cash_balance = await self._get_cash_balance(session, broker, strategy)
+        positions_balance = await self._calculate_positions_balance(session, broker, strategy)
+
+        self._insert_or_update_balance(session, broker, strategy, 'cash', cash_balance, timestamp)
+        self._insert_or_update_balance(session, broker, strategy, 'positions', positions_balance, timestamp)
+
+        total_balance = cash_balance + positions_balance
+        self._insert_or_update_balance(session, broker, strategy, 'total', total_balance, timestamp)
+
+    async def _get_cash_balance(self, session, broker, strategy):
+        balance_result = await session.execute(
+            select(Balance).filter_by(broker=broker, strategy=strategy, type='cash').order_by(Balance.timestamp.desc()).limit(1)
+        )
+        balance = balance_result.scalar()
+        return balance.balance if balance else 0
+
+    async def _calculate_positions_balance(self, session, broker, strategy):
+        positions_result = await session.execute(
+            select(Position).filter_by(broker=broker, strategy=strategy)
+        )
+        positions = positions_result.scalars().all()
+
+        total_positions_value = 0
+        for position in positions:
+            latest_price = await self.broker_service.get_latest_price(broker, position.symbol)
+            position_value = latest_price * position.quantity
+            total_positions_value += position_value
+
+        return total_positions_value
+
+    def _insert_or_update_balance(self, session, broker, strategy, balance_type, balance_value, timestamp=None):
+        timestamp = timestamp or datetime.now()
+        new_balance_record = Balance(
+            broker=broker,
+            strategy=strategy,
+            type=balance_type,
+            balance=balance_value,
+            timestamp=timestamp
+        )
+        session.add(new_balance_record)
+        logger.debug(f"Updated {balance_type} balance for strategy {strategy}: {balance_value}")
+
+    async def update_uncategorized_balances(self, session, broker, timestamp):
+        total_value, categorized_balance_sum = await self._get_account_balance_info(session, broker)
+        logger.info(f"Broker {broker}: Total account value: {total_value}, Categorized balance sum: {categorized_balance_sum}")
+
+        uncategorized_balance = max(0, total_value - categorized_balance_sum)
+        logger.debug(f"Calculated uncategorized balance for broker {broker}: {uncategorized_balance}")
+
+        self._insert_uncategorized_balance(session, broker, uncategorized_balance, timestamp)
+
+    async def _get_account_balance_info(self, session, broker):
+        account_info = await self.broker_service.get_account_info(broker)
+        total_value = account_info['value']
+        categorized_balance_sum = await self._sum_all_strategy_balances(session, broker)
+        return total_value, categorized_balance_sum
+
+    def _insert_uncategorized_balance(self, session, broker, uncategorized_balance, timestamp):
+        new_balance_record = Balance(
+            broker=broker,
+            strategy='uncategorized',
+            type='cash',
+            balance=uncategorized_balance,
+            timestamp=timestamp
+        )
+        session.add(new_balance_record)
+        logger.debug(f"Updated uncategorized balance for broker {broker}: {uncategorized_balance}")
+
+    async def _sum_all_strategy_balances(self, session, broker):
+        strategies = await self._get_strategies(session, broker)
+        return await self._sum_each_strategy_balance(session, broker, strategies)
+
+    async def _sum_each_strategy_balance(self, session, broker, strategies):
+        total_balance = 0
+        for strategy in strategies:
+            cash_balance = await self._get_cash_balance(session, broker, strategy)
+            positions_balance = await self._calculate_positions_balance(session, broker, strategy)
+            logger.info(f"Strategy: {strategy}, Cash: {cash_balance}, Positions: {positions_balance}")
+            total_balance += (cash_balance + positions_balance)
+        return total_balance
 
 
-@pytest.mark.asyncio
-async def test_get_broker_instance(broker_service):
-    broker_instance = await broker_service.get_broker_instance('mock_broker')
-    assert broker_instance == broker_service.brokers['mock_broker']
+async def sync_worker(engine, brokers):
+    async_engine = await _get_async_engine(engine)
+    Session = sessionmaker(bind=async_engine, class_=AsyncSession, expire_on_commit=True)
+
+    broker_service = BrokerService(brokers)
+    position_service = PositionService(broker_service)
+    balance_service = BalanceService(broker_service)
+
+    await _run_sync_worker_iteration(Session, position_service, balance_service, brokers)
 
 
-@pytest.mark.asyncio
-@patch('data.sync_worker.logger')
-async def test_get_latest_price_async(mock_logger, broker_service):
-    mock_broker = MagicMock()
-    mock_broker.get_current_price = AsyncMock(return_value=100)
-    broker_service.get_broker_instance = AsyncMock(return_value=mock_broker)
-    price = await broker_service.get_latest_price('mock_broker', 'AAPL')
-    assert price == 100
-    mock_broker.get_current_price.assert_awaited_once_with('AAPL')
-
-@pytest.mark.asyncio
-@patch('data.sync_worker.logger')
-async def skip_test_update_position_price(mock_logger, position_service):
-    mock_session = AsyncMock(AsyncSession)
-    mock_position = Position(symbol='AAPL', broker='mock_broker', quantity=10)
-    # Mocking external dependencies
-    position_service.broker_service.get_latest_price = AsyncMock(return_value=150)
-    position_service._get_underlying_symbol = MagicMock(return_value='AAPL')
-    position_service._calculate_historical_volatility = AsyncMock(return_value=0.2)
-    await position_service._update_position_price(mock_session, mock_position, datetime.now())
-    assert mock_position.latest_price == 150
-    assert mock_position.underlying_volatility == 0.2
-    assert mock_session.commit.called
+async def _get_async_engine(engine):
+    if isinstance(engine, str):
+        return create_async_engine(engine)
+    if isinstance(engine, sqlalchemy.engine.Engine):
+        raise ValueError("AsyncEngine expected, but got a synchronous Engine.")
+    if isinstance(engine, sqlalchemy.ext.asyncio.AsyncEngine):
+        return engine
+    raise ValueError("Invalid engine type. Expected a connection string or an AsyncEngine object.")
 
 
-@pytest.mark.asyncio
-@patch('data.sync_worker.logger')
-async def skip_test_update_strategy_balance(mock_logger, balance_service):
-    mock_session = AsyncMock(AsyncSession)
-    mock_session.execute.side_effect = [
-        AsyncMock(scalar=MagicMock(return_value=None)),  # Cash balance query
-        MagicMock(scalar=MagicMock(return_value=None))   # Positions balance query
-    ]
-    await balance_service.update_strategy_balance(mock_session, 'mock_broker', 'strategy1', datetime.now())
-    assert mock_session.add.called  # Check that session.add was called to add a new balance record
-    assert mock_session.commit.called
-
-@pytest.mark.asyncio
-@patch('data.sync_worker.logger')
-async def skip_test_update_uncategorized_balances(mock_logger, balance_service):
-    mock_session = AsyncMock(AsyncSession)
-    balance_service.broker_service.get_account_info = AsyncMock(return_value={'value': 1000})
-    balance_service._sum_all_strategy_balances = AsyncMock(return_value=800)
-    await balance_service.update_uncategorized_balances(mock_session, 'mock_broker', datetime.now())
-    assert mock_session.add.called  # Check that a new balance record was added
-    assert mock_session.commit.called  # Ensure the session was committed
-
-@pytest.mark.asyncio
-async def skip_test_get_positions(position_service):
-    mock_session = AsyncMock(AsyncSession)
-
-    mock_broker_positions = {'AAPL': 'mock_position'}
-
-    position_service.broker_service.get_broker_instance = AsyncMock()
-    mock_broker_instance = MagicMock()
-    mock_broker_instance.get_positions.return_value = mock_broker_positions
-    position_service.broker_service.get_broker_instance.return_value = mock_broker_instance
-
-    position_service._fetch_db_positions = AsyncMock(return_value={})
-
-    broker_positions, db_positions = await position_service._get_positions(mock_session, 'mock_broker')
-
-    assert broker_positions == mock_broker_positions
-
-    assert db_positions == {}
-
-@pytest.mark.asyncio
-@patch('data.sync_worker.logger')
-async def test_fetch_and_log_price(mock_logger, position_service):
-    mock_position = Position(symbol='AAPL', broker='mock_broker')
-    position_service.broker_service.get_latest_price = AsyncMock(return_value=150)
-    price = await position_service._fetch_and_log_price(mock_position)
-    assert price == 150
-    mock_logger.debug.assert_called_with('Updated latest price for AAPL to 150')
-
-
-def test_strip_timezone(position_service):
-    timestamp_with_tz = datetime.now(timezone.utc)
-    timestamp_naive = position_service._strip_timezone(timestamp_with_tz)
-    assert timestamp_naive.tzinfo is None
-
-@pytest.mark.asyncio
-async def test_fetch_broker_instance(broker_service):
-    broker_instance = await broker_service._fetch_broker_instance('mock_broker')
-    assert broker_instance == broker_service.brokers['mock_broker']
-
-
-@pytest.mark.asyncio
-async def test_fetch_price(broker_service):
-    mock_broker = AsyncMock()
-    mock_broker.get_current_price = AsyncMock(return_value=100)
-    price = await broker_service._fetch_price(mock_broker, 'AAPL')
-    assert price == 100
-
-@pytest.mark.asyncio
-async def skip_test_insert_new_position():
-    # Mock the session and broker position
-    mock_session = AsyncMock(spec=AsyncSession)
-    mock_broker_position = {
-        'symbol': 'AAPL',
-        'quantity': 10,
-        'latest_price': 150.0
-    }
-    # Create PositionService and timestamp
-    position_service = PositionService(AsyncMock())
+async def _run_sync_worker_iteration(Session, position_service, balance_service, brokers):
+    logger.info('Starting sync worker iteration')
     now = datetime.now()
-
-    # Call the method
-    await position_service._insert_new_position(mock_session, 'mock_broker', mock_broker_position, now)
-
-    # Verify session.add was called with the correct new position
-    mock_session.add.assert_called_once()
-    added_position = mock_session.add.call_args[0][0]
-    assert added_position.broker == 'mock_broker'
-    assert added_position.strategy == 'uncategorized'
-    assert added_position.symbol == 'AAPL'
-    assert added_position.quantity == 10
-    assert added_position.latest_price == 150.0
-    assert added_position.last_updated == now
-
-    # Verify that commit was called
-    mock_session.commit.assert_awaited_once()
-
-@pytest.mark.asyncio
-@patch('data.sync_worker.logger')
-async def skip_test_insert_or_update_balance(mock_logger, balance_service):
-    mock_session = AsyncMock(AsyncSession)
-    await balance_service._insert_or_update_balance(mock_session, 'mock_broker', 'strategy1', 1000, datetime.now())
-    assert mock_session.add.called  # Ensure a new balance record was added
-    assert mock_session.commit.called  # Ensure the session was committed
+    async with Session() as session:
+        logger.info('Session started')
+        await _fetch_and_update_positions(session, position_service, now)
+        await _reconcile_brokers_and_update_balances(session, position_service, balance_service, brokers, now)
+        # commit anything we forgot about
+        await session.commit()
+    logger.info('Sync worker completed an iteration')
 
 
-@pytest.mark.asyncio
-async def test_get_async_engine():
-    engine_url = "sqlite+aiosqlite:///:memory:"
-    async_engine = await _get_async_engine(engine_url)
-    assert async_engine.name == "sqlite"
+async def _fetch_and_update_positions(session, position_service, now):
+    positions = await session.execute(select(Position))
+    logger.info('Positions fetched')
+    await position_service.update_position_prices_and_volatility(session, positions.scalars(), now)
 
-@pytest.mark.asyncio
-@patch('data.sync_worker.logger')
-async def skip_test_fetch_and_update_positions(mock_logger):
-    mock_session = AsyncMock()
-    mock_position_service = AsyncMock()
-    mock_positions = AsyncMock()
 
-    # Mock session.execute to return mock positions
-    mock_session.execute.return_value = mock_positions
-
-    await _fetch_and_update_positions(mock_session, mock_position_service, datetime.now())
-
-    mock_session.execute.assert_called_once_with(ANY)
-    #mock_position_service.update_position_prices_and_volatility.assert_awaited_once_with(mock_session, mock_positions.scalars(), ANY)
-    mock_logger.info.assert_any_call('Positions fetched')
-
-@pytest.mark.asyncio
-@patch('data.sync_worker.logger')
-async def test_reconcile_brokers_and_update_balances(mock_logger):
-    mock_session = AsyncMock()
-    mock_position_service = AsyncMock()
-    mock_balance_service = AsyncMock()
-    mock_brokers = ['broker1', 'broker2']
-    mock_now = datetime.now()  # Capture datetime once
-
-    await _reconcile_brokers_and_update_balances(mock_session, mock_position_service, mock_balance_service, mock_brokers, mock_now)
-
-    # Ensure reconcile positions and update balances are called for both brokers
-    mock_position_service.reconcile_positions.assert_any_await(mock_session, 'broker1')
-    mock_position_service.reconcile_positions.assert_any_await(mock_session, 'broker2')
-    mock_balance_service.update_all_strategy_balances.assert_any_await(mock_session, 'broker1', mock_now)
-    mock_balance_service.update_all_strategy_balances.assert_any_await(mock_session, 'broker2', mock_now)
-
-# TODO: Fix this test or refactor
-@pytest.mark.asyncio
-async def skip_test_update_strategy_and_uncategorized_balances():
-    # Mock broker_service
-    mock_broker_service = MagicMock()
-    mock_broker_service.get_account_info.return_value = {'value': 30000}
-    mock_broker_service.get_latest_price.side_effect = lambda broker, symbol: 100 if symbol == 'AAPL' else 200 if symbol == 'GOOGL' else 150
-
-    # Create the BalanceService instance
-    balance_service = BalanceService(mock_broker_service)
-    balance_service._get_strategies = AsyncMock(return_value=['test_strategy'])
-
-    # Mock SQLAlchemy session
-    mock_session = AsyncMock(spec=AsyncSession)
-
-    # Mock the strategy cash and position balances
-    mock_cash_balance = Balance(broker='tradier', strategy='test_strategy', type='cash', balance=5000, timestamp=datetime.now())
-    mock_position_balance = Balance(broker='tradier', strategy='test_strategy', type='positions', balance=10000, timestamp=datetime.now())
-
-    mock_session.execute.side_effect = [
-        MagicMock(scalar=MagicMock(return_value=None)),  # Cash balance query
-        MagicMock(scalar=MagicMock(return_value=None))   # Positions balance query
-    ]
-
-    # Mock query results for cash and positions balance
-    mock_session.execute.return_value.scalars.side_effect = [
-        [mock_cash_balance],  # First call returns cash balance
-        [mock_position_balance],  # Second call returns position balance
-        []  # Assume no further results
-    ]
-
-    # Mock current positions for the strategy
-    mock_position = Position(broker='tradier', strategy='test_strategy', symbol='AAPL', quantity=50, latest_price=100, last_updated=datetime.now())
-    mock_session.execute.return_value.scalars.return_value = [mock_position]
-
-    # Mock the strategy and uncategorized balance update process
-    await balance_service.update_all_strategy_balances(mock_session, 'tradier', datetime.now())
-
-    # Check that the balances were inserted/updated correctly
-    mock_session.add.assert_any_call(Balance(
-        broker='tradier',
-        strategy='test_strategy',
-        type='cash',
-        balance=5000,
-        timestamp=ANY
-    ))
-
-    mock_session.add.assert_any_call(Balance(
-        broker='tradier',
-        strategy='test_strategy',
-        type='positions',
-        balance=10000,
-        timestamp=pytest.any
-    ))
-
-    # Check uncategorized balance calculation
-    uncategorized_balance = 30000 - (5000 + 10000)
-    mock_session.add.assert_any_call(Balance(
-        broker='tradier',
-        strategy='uncategorized',
-        type='cash',
-        balance=uncategorized_balance,
-        timestamp=pytest.any
-    ))
-
-    # Ensure the session commits were called
-    assert mock_session.commit.call_count == 3
-
-@pytest.mark.asyncio
-async def skip_test_insert_or_update_position():
-    # Mock the session and broker position
-    mock_session = AsyncMock(spec=AsyncSession)
-    mock_broker_position_existing = {
-        'symbol': 'AAPL',
-        'quantity': 15,
-        'latest_price': 150.0,
-        'last_updated': datetime.now()
-    }
-    mock_broker_position_new = {
-        'symbol': 'MSFT',
-        'quantity': 20,
-        'latest_price': 200.0
-    }
-
-    now = datetime.now()
-    # Simulate an existing position in the DB
-    existing_position = Position(
-        broker='mock_broker',
-        symbol='AAPL',
-        quantity=10,
-        latest_price=100.0,
-        last_updated=now
-    )
-
-    # Mock the query for existing positions to return the existing AAPL position
-    mock_session.execute.return_value.scalars.return_value = [existing_position]
-
-    # Create PositionService and timestamp
-    position_service = PositionService(AsyncMock())
-
-    # Test updating the existing AAPL position
-    await position_service._insert_new_position(mock_session, 'mock_broker', mock_broker_position_existing, now)
-
-    # Check that the existing AAPL position was updated, not inserted
-    assert existing_position.quantity == 10
-    assert existing_position.latest_price == 100.0
-    assert existing_position.last_updated == now
-
-    # Test inserting a new MSFT position
-    await position_service._insert_new_position(mock_session, 'mock_broker', mock_broker_position_new, now)
-
-    # Verify that a new position was added for MSFT
-    mock_session.add.assert_called()
-    added_position = mock_session.add.call_args[0][0]
-    assert added_position.broker == 'mock_broker'
-    assert added_position.symbol == 'MSFT'
-    assert added_position.quantity == 20
-    assert added_position.latest_price == 200.0
-    assert added_position.last_updated == now
-
-    # Ensure session.commit() is called once after updating both positions
-    assert mock_session.commit.await_count == 2
+async def _reconcile_brokers_and_update_balances(session, position_service, balance_service, brokers, now):
+    for broker in brokers:
+        await position_service.reconcile_positions(session, broker)
+        await balance_service.update_all_strategy_balances(session, broker, now)
