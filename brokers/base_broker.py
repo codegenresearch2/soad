@@ -86,7 +86,7 @@ class BaseBroker(ABC):
         if not trade:
             return
 
-        executed_price = order_info.get('filled_price', trade.price)  # Use 'filled_price' from order_info
+        executed_price = order_info.get('filled_price', None)  # Use 'filled_price' from order_info
         if executed_price is None:
             executed_price = trade.price
 
