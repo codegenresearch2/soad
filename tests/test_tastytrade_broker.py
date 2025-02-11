@@ -23,7 +23,6 @@ class TestTastytradeBroker(unittest.TestCase):
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
     def test_get_account_info(self, mock_post, mock_get):
-        self.setUp()  # Reset the broker instance
         self.mock_connect(mock_post)
 
         mock_account_info_response = MagicMock()
@@ -44,7 +43,6 @@ class TestTastytradeBroker(unittest.TestCase):
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
     def test_place_order(self, mock_post_place_order, mock_get_account_info, mock_post_connect):
-        self.setUp()  # Reset the broker instance
         self.mock_connect(mock_post_connect)
 
         mock_account_info_response = MagicMock()
