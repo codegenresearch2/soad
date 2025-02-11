@@ -8,7 +8,7 @@ app = Flask("TradingAPI", template_folder='ui/templates')
 
 # CORS Configuration
 from flask_cors import CORS
-CORS(app, origins=["http://example.com"], supports_credentials=True)
+CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
 
 @app.route('/position_page')
 def positions():
@@ -32,25 +32,28 @@ def trades_per_strategy():
 
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 def historic_balance_per_strategy():
-    historical_balances = app.session.query(
-        Balance.strategy,
-        Balance.broker,
-        func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
-        Balance.total_balance,
-    ).group_by(
-        Balance.strategy, Balance.broker, 'hour'
-    ).order_by(
-        Balance.strategy, Balance.broker, 'hour'
-    ).all()
-    historical_balances_serializable = []
-    for strategy, broker, hour, total_balance in historical_balances:
-        historical_balances_serializable.append({
-            "strategy": strategy,
-            "broker": broker,
-            "hour": hour,
-            "total_balance": total_balance
-        })
-    return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
+    try:
+        historical_balances = app.session.query(
+            Balance.strategy,
+            Balance.broker,
+            func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
+            Balance.total_balance,
+        ).group_by(
+            Balance.strategy, Balance.broker, 'hour'
+        ).order_by(
+            Balance.strategy, Balance.broker, 'hour'
+        ).all()
+        historical_balances_serializable = []
+        for strategy, broker, hour, total_balance in historical_balances:
+            historical_balances_serializable.append({
+                "strategy": strategy,
+                "broker": broker,
+                "hour": hour,
+                "total_balance": total_balance
+            })
+        return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/account_values')
 def account_values():
@@ -99,7 +102,7 @@ def get_positions():
             'symbol': position.symbol,
             'quantity': position.quantity,
             'latest_price': position.latest_price,
-            'last_updated': position.last_updated
+            'timestamp': position.last_updated
         })
 
     return jsonify({'positions': positions_data})
