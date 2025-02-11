@@ -1,5 +1,6 @@
 import unittest
 from datetime import datetime
+from unittest.mock import patch, MagicMock
 from database.models import Trade, Balance
 from .base_test import BaseTest
 from brokers.base_broker import BaseBroker
@@ -66,7 +67,12 @@ class TestTrading(BaseTest):
         self.session.add_all(additional_fake_trades)
         self.session.commit()
 
-    def test_execute_trade(self):
+    @patch('brokers.base_broker.requests.get')
+    @patch('brokers.base_broker.requests.post')
+    def test_execute_trade(self, mock_post, mock_get):
+        # Mock the session
+        mock_session = MagicMock()
+
         # Example trade data
         trade_data = {
             'symbol': 'AAPL',
@@ -84,14 +90,14 @@ class TestTrading(BaseTest):
 
         # Execute the trade
         broker = MockBroker('api_key', 'secret_key', 'E*TRADE', engine=self.engine)
-        broker.execute_trade(self.session, trade_data)
+        broker.execute_trade(mock_session, trade_data)
 
         # Verify the trade was inserted
-        trade = self.session.query(Trade).filter_by(symbol='AAPL').first()
+        trade = mock_session.query(Trade).filter_by(symbol='AAPL').first()
         self.assertIsNotNone(trade)
 
         # Verify the balance was updated
-        balance = self.session.query(Balance).filter_by(broker='E*TRADE', strategy='SMA').first()
+        balance = mock_session.query(Balance).filter_by(broker='E*TRADE', strategy='SMA').first()
         self.assertIsNotNone(balance)
         self.assertEqual(balance.total_balance, 1510.0)
 
