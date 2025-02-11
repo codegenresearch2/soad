@@ -2,10 +2,9 @@ from flask import Flask, jsonify, render_template, request
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo, Balance, Position
-import os
 from flask_cors import CORS
 
-app = Flask("TradingAPI", template_folder='ui/templates')
+app = Flask("TradingAPI")
 CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
 
 @app.route('/position_page')
@@ -57,29 +56,35 @@ def historic_balance_per_strategy():
 
 @app.route('/account_values')
 def account_values():
-    accounts = app.session.query(AccountInfo).all()
-    accounts_data = {account.broker: account.value for account in accounts}
-    return jsonify({"account_values": accounts_data})
+    try:
+        accounts = app.session.query(AccountInfo).all()
+        accounts_data = {account.broker: account.value for account in accounts}
+        return jsonify({"account_values": accounts_data})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/trade_success_rate')
 def trade_success_rate():
-    strategies_and_brokers = app.session.query(Trade.strategy, Trade.broker).distinct().all()
-    success_rate_by_strategy_and_broker = []
+    try:
+        strategies_and_brokers = app.session.query(Trade.strategy, Trade.broker).distinct().all()
+        success_rate_by_strategy_and_broker = []
 
-    for strategy, broker in strategies_and_brokers:
-        total_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker).scalar()
-        successful_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker, Trade.profit_loss > 0).scalar()
-        failed_trades = total_trades - successful_trades
+        for strategy, broker in strategies_and_brokers:
+            total_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker).scalar()
+            successful_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker, Trade.profit_loss > 0).scalar()
+            failed_trades = total_trades - successful_trades
 
-        success_rate_by_strategy_and_broker.append({
-            "strategy": strategy,
-            "broker": broker,
-            "total_trades": total_trades,
-            "successful_trades": successful_trades,
-            "failed_trades": failed_trades
-        })
+            success_rate_by_strategy_and_broker.append({
+                "strategy": strategy,
+                "broker": broker,
+                "total_trades": total_trades,
+                "successful_trades": successful_trades,
+                "failed_trades": failed_trades
+            })
 
-    return jsonify({"trade_success_rate": success_rate_by_strategy_and_broker})
+        return jsonify({"trade_success_rate": success_rate_by_strategy_and_broker})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/positions', methods=['GET'])
 def get_positions():
