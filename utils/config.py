@@ -60,9 +60,12 @@ def initialize_brokers(config):
 
 def initialize_strategies(brokers, config):
     strategies = []
-    for strategy_config in config.get('strategies', []):
+    strategies_config = config.get('strategies', [])
+    for strategy_config in strategies_config:
         strategy_type = strategy_config['type']
         broker_name = strategy_config['broker']
+        if broker_name not in brokers:
+            raise ValueError(f"Broker '{broker_name}' not found in the configuration.")
         broker = brokers[broker_name]
         if strategy_type in STRATEGY_MAP:
             strategy = STRATEGY_MAP[strategy_type](broker, strategy_config)
