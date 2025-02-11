@@ -14,7 +14,7 @@ def start_trading_system(config_path):
     brokers = initialize_brokers(config)
     
     # Initialize the database engine
-    engine = create_engine(config['database']['url'] if 'database' in config and 'url' in config['database'] else 'sqlite:///default_trading_system.db')
+    engine = create_engine(config.get('database', {}).get('url', 'sqlite:///default_trading_system.db'))
     init_db(engine)
     
     # Connect to each broker
@@ -46,15 +46,11 @@ def start_api_server(config_path=None, local_testing=False):
     brokers = initialize_brokers(config)
 
     # Initialize the database engine
-    engine = create_engine(config['database']['url'] if 'database' in config and 'url' in config['database'] else 'sqlite:///default_trading_system.db')
+    engine = create_engine(config.get('database', {}).get('url', 'sqlite:///default_trading_system.db'))
     init_db(engine)
 
     app = create_app(engine)
-    if not local_testing:
-        app.run(host="0.0.0.0", port=8000, debug=True)
-    else:
-        # Run the app in debug mode for local testing
-        app.run(host="0.0.0.0", port=8000, debug=True)
+    app.run(host="0.0.0.0", port=8000, debug=True)
 
 def main():
     parser = argparse.ArgumentParser(description="Run trading strategies or start API server based on YAML configuration.")
