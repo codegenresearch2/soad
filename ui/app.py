@@ -9,7 +9,12 @@ app = Flask("TradingAPI", template_folder='ui/templates')
 DATABASE_URL = "sqlite:///trading.db"
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
-app.session = Session()
+
+def create_app():
+    app.session = Session()
+    return app
+
+app = create_app()
 
 @app.route('/position_page')
 def positions():
@@ -35,25 +40,28 @@ def trades_per_strategy():
 
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 def historic_balance_per_strategy():
-    historical_balances = app.session.query(
-        Balance.strategy,
-        Balance.broker,
-        func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
-        Balance.total_balance,
-    ).group_by(
-        Balance.strategy, Balance.broker, 'hour'
-    ).order_by(
-        Balance.strategy, Balance.broker, 'hour'
-    ).all()
-    historical_balances_serializable = []
-    for strategy, broker, hour, total_balance in historical_balances:
-        historical_balances_serializable.append({
-            "strategy": strategy,
-            "broker": broker,
-            "hour": hour,
-            "total_balance": total_balance
-        })
-    return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
+    try:
+        historical_balances = app.session.query(
+            Balance.strategy,
+            Balance.broker,
+            func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
+            Balance.total_balance,
+        ).group_by(
+            Balance.strategy, Balance.broker, 'hour'
+        ).order_by(
+            Balance.strategy, Balance.broker, 'hour'
+        ).all()
+        historical_balances_serializable = []
+        for strategy, broker, hour, total_balance in historical_balances:
+            historical_balances_serializable.append({
+                "strategy": strategy,
+                "broker": broker,
+                "hour": hour,
+                "total_balance": total_balance
+            })
+        return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
+    finally:
+        app.session.close()
 
 @app.route('/account_values')
 def account_values():
@@ -107,5 +115,5 @@ def get_positions():
 
     return jsonify({'positions': positions_data})
 
-def create_app():
-    return app
+if __name__ == "__main__":
+    app.run(debug=True)
