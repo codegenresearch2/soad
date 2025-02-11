@@ -14,7 +14,12 @@ def start_trading_system(config_path):
     brokers = initialize_brokers(config)
     
     # Initialize the database engine
-    engine = create_engine(config['database']['url']) if 'database' in config and 'url' in config['database'] else create_engine('sqlite:///default_trading_system.db')
+    engine = None
+    if 'database' in config and 'url' in config['database']:
+        engine = create_engine(config['database']['url'])
+    else:
+        engine = create_engine('sqlite:///default_trading_system.db')
+    
     # Initialize the database
     init_db(engine)
     
