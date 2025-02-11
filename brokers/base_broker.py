@@ -62,7 +62,7 @@ class BaseBroker(ABC):
             ).all()
             return len(trades) > 0
 
-    def update_positions(self, session, trade, order_type):
+    def update_positions(self, session, trade):
         position = session.query(Position).filter_by(symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy).first()
 
         if trade.order_type == 'buy':
@@ -114,6 +114,10 @@ class BaseBroker(ABC):
             session.add(trade)
             session.commit()
 
+            # Update positions after committing the trade
+            self.update_positions(session, trade)
+
+            # Update balance
             balance = session.query(Balance).filter_by(broker=self.broker_name, strategy=strategy).first()
             if not balance:
                 balance = Balance(
@@ -127,9 +131,6 @@ class BaseBroker(ABC):
 
             balance.total_balance += trade.executed_price * trade.quantity
             session.commit()
-
-            # Update positions
-            self.update_positions(session, trade, order_type)
 
         return response
 
