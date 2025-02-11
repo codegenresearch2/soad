@@ -40,6 +40,7 @@ class BaseBroker(ABC):
         return account_info
 
     def place_order(self, symbol, quantity, order_type, strategy, price=None):
+        """Places an order and updates the trade information in the database."""
         order_info = self._place_order(symbol, quantity, order_type, price)
         executed_price = order_info.get('executed_price', price)
         with self.db_manager.Session() as session:
@@ -54,7 +55,7 @@ class BaseBroker(ABC):
                 strategy=strategy,
                 success=None,
                 profit_loss=None,
-                executed_price=None  # Set explicitly to None
+                executed_price=executed_price  # Set explicitly to None or the order price
             )
             session.add(trade)
             session.commit()
@@ -81,6 +82,7 @@ class BaseBroker(ABC):
         return self._get_options_chain(symbol, expiration_date)
 
     def update_trade(self, session, trade_id, order_info):
+        """Updates the trade information based on the order status."""
         trade = session.query(Trade).filter_by(id=trade_id).first()
         if not trade:
             return
