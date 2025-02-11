@@ -6,7 +6,7 @@ from database.models import Trade, AccountInfo, Balance, Position
 from datetime import datetime
 
 class BaseBroker(ABC):
-    def __init__(self, api_key, secret_key, broker_name, engine, prevent_day_trading=False):
+    def __init__(self, api_key, secret_key, broker_name, engine):
         self.api_key = api_key
         self.secret_key = secret_key
         self.broker_name = broker_name
@@ -14,7 +14,7 @@ class BaseBroker(ABC):
         self.db_manager = DBManager(engine)
         self.Session = sessionmaker(bind=engine)
         self.account_id = None
-        self.prevent_day_trading = prevent_day_trading
+        self.prevent_day_trading = False
 
     @abstractmethod
     def connect(self):
@@ -62,7 +62,7 @@ class BaseBroker(ABC):
             ).all()
             return len(trades) > 0
 
-    def update_positions(self, session, trade):
+    def update_positions(self, session, trade, order_type):
         position = session.query(Position).filter_by(symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy).first()
 
         if trade.order_type == 'buy':
@@ -129,7 +129,7 @@ class BaseBroker(ABC):
             session.commit()
 
             # Update positions
-            self.update_positions(session, trade)
+            self.update_positions(session, trade, order_type)
 
         return response
 
