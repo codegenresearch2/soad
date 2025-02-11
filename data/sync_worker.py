@@ -9,7 +9,6 @@ from database.models import Position, Balance
 import yfinance as yf
 import sqlalchemy
 
-
 class BrokerService:
     def __init__(self, brokers):
         self.brokers = brokers
@@ -33,7 +32,6 @@ class BrokerService:
         if asyncio.iscoroutinefunction(broker_instance.get_current_price):
             return await broker_instance.get_current_price(symbol)
         return broker_instance.get_current_price(symbol)
-
 
 class PositionService:
     def __init__(self, broker_service):
@@ -153,7 +151,6 @@ class PositionService:
             logger.error(f'Error calculating volatility for {symbol}: {e}')
             return None
 
-
 class BalanceService:
     def __init__(self, broker_service):
         self.broker_service = broker_service
@@ -257,7 +254,6 @@ class BalanceService:
             total_balance += (cash_balance + positions_balance)
         return total_balance
 
-
 async def sync_worker(engine, brokers):
     async_engine = await _get_async_engine(engine)
     Session = sessionmaker(bind=async_engine, class_=AsyncSession, expire_on_commit=True)
@@ -268,7 +264,6 @@ async def sync_worker(engine, brokers):
 
     await _run_sync_worker_iteration(Session, position_service, balance_service, brokers)
 
-
 async def _get_async_engine(engine):
     if isinstance(engine, str):
         return create_async_engine(engine)
@@ -277,7 +272,6 @@ async def _get_async_engine(engine):
     if isinstance(engine, sqlalchemy.ext.asyncio.AsyncEngine):
         return engine
     raise ValueError("Invalid engine type. Expected a connection string or an AsyncEngine object.")
-
 
 async def _run_sync_worker_iteration(Session, position_service, balance_service, brokers):
     logger.info('Starting sync worker iteration')
@@ -288,12 +282,10 @@ async def _run_sync_worker_iteration(Session, position_service, balance_service,
         await _reconcile_brokers_and_update_balances(session, position_service, balance_service, brokers, now)
     logger.info('Sync worker completed an iteration')
 
-
 async def _fetch_and_update_positions(session, position_service, now):
     positions = await session.execute(select(Position))
     logger.info('Positions fetched')
     await position_service.update_position_prices_and_volatility(session, positions.scalars(), now)
-
 
 async def _reconcile_brokers_and_update_balances(session, position_service, balance_service, brokers, now):
     for broker in brokers:
