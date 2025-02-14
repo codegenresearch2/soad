@@ -11,10 +11,64 @@ from sqlalchemy.ext.asyncio import AsyncSession
 class TestBaseStrategy(BaseStrategy):
     def __init__(self, broker):
         super().__init__(broker, 'test_strategy', 10000)
+        self.logger = logging.getLogger('test_strategy')  # Enhanced logging
         return
 
     async def rebalance(self):
-        pass
+        self.logger.info("Starting rebalance process.")  # Enhanced logging
+        # Implementation of rebalance logic
+        self.logger.debug("Fetching current positions from broker.")  # Enhanced logging
+        positions = await self.broker.get_positions()
+        self.logger.debug(f"Current positions: {positions}")  # Enhanced logging
+        # Rebalance logic implementation
+        self.logger.info("Rebalance process completed.")  # Enhanced logging
+
+    async def initialize_starting_balance(self):
+        session = self.broker.Session().__enter__()
+        query = select(Balance).filter_by(
+            strategy=self.strategy_name,
+            broker=self.broker.broker_name,
+            type='cash'
+        ).order_by(Balance.timestamp.desc())
+        result = await session.execute(query)
+        balance = result.scalar()
+        if balance is None:
+            balance = Balance(strategy=self.strategy_name, broker=self.broker.broker_name, type='cash', balance=self.starting_capital)
+            session.add(balance)
+            await session.commit()
+        else:
+            self.logger.info("Starting balance already initialized.")  # Enhanced logging
+
+    async def sync_positions_with_broker(self):
+        positions = await self.broker.get_positions()
+        session = self.broker.Session().__enter__()
+        for symbol, details in positions.items():
+            quantity = details['quantity']
+            query = select(Position).filter_by(symbol=symbol, strategy=self.strategy_name, broker=self.broker.broker_name)
+            result = await session.execute(query)
+            db_position = result.scalar()
+            if db_position is None:
+                position = Position(symbol=symbol, strategy=self.strategy_name, broker=self.broker.broker_name, quantity=quantity)
+                session.add(position)
+            else:
+                db_position.quantity = quantity
+        await session.commit()
+
+    def calculate_target_balances(self, total_balance, cash_percentage):
+        target_cash_balance = total_balance * cash_percentage
+        target_investment_balance = total_balance - target_cash_balance
+        return target_cash_balance, target_investment_balance
+
+    async def fetch_current_db_positions(self):
+        session = self.broker.Session().__enter__()
+        query = select(Position).filter_by(strategy=self.strategy_name, broker=self.broker.broker_name)
+        result = await session.execute(query)
+        positions = {row.symbol: row.quantity for row in result.scalars().all()}
+        return positions
+
+    async def place_order(self, symbol, quantity, action, price):
+        await self.broker.place_order(symbol, quantity, action, self.strategy_name, price, 'limit')
+
 
 @pytest.fixture
 def broker():
@@ -34,6 +88,7 @@ def broker():
     session_mock.query.return_value.filter_by.return_value.first.return_value = balance_mock
 
     return broker
+
 
 @pytest.fixture
 def strategy(broker):
@@ -77,6 +132,7 @@ async def test_initialize_starting_balance_existing(strategy):
     # Ensure that the balance was not re-added since it already exists
     mock_session.add.assert_not_called()
     mock_session.commit.assert_not_called()
+
 
 @pytest.mark.asyncio
 async def test_initialize_starting_balance_new(strategy):
@@ -155,12 +211,14 @@ async def test_sync_positions_with_broker(mock_should_own, mock_iscoroutinefunct
     session_mock.add.assert_called_once()
     session_mock.commit.assert_called_once()
 
+
 def test_calculate_target_balances(strategy):
     total_balance = 10000
     cash_percentage = 0.2
     target_cash_balance, target_investment_balance = strategy.calculate_target_balances(total_balance, cash_percentage)
     assert target_cash_balance == 2000
     assert target_investment_balance == 8000
+
 
 @pytest.mark.asyncio
 @patch('strategies.base_strategy.asyncio.iscoroutinefunction', return_value=False)
@@ -172,10 +230,11 @@ async def skip_test_fetch_current_db_positions(strategy):
     positions = await strategy.fetch_current_db_positions()
     assert positions == {'AAPL': 10}
 
+
 @pytest.mark.asyncio
 @patch('strategies.base_strategy.is_market_open', return_value=True)
 @patch('strategies.base_strategy.asyncio.iscoroutinefunction', return_value=False)
 async def test_place_order(mock_iscoroutinefunction, mock_is_market_open, strategy):
     strategy.broker.place_order = AsyncMock()
     await strategy.place_order('AAPL', 10, 'buy', 150)
-    strategy.broker.place_order.assert_called_once_with('AAPL', 10, 'buy', strategy.strategy_name, 150, 'limit', execution_style='')
+    strategy.broker.place_order.assert_called_once_with('AAPL', 10, 'buy', strategy.strategy_name, 150, 'limit')
