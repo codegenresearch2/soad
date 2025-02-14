@@ -10,6 +10,8 @@ from tastytrade import Session, DXLinkStreamer, Account
 from tastytrade.instruments import Equity, NestedOptionChain, Option, Future, FutureOption
 from tastytrade.dxfeed import EventType
 from tastytrade.order import NewOrder, OrderAction, OrderTimeInForce, OrderType, PriceEffect, OrderStatus
+from database.models import Balance, Trade
+from sqlalchemy.orm.exc import NoResultFound
 
 class TastytradeBroker(BaseBroker):
     def __init__(self, username, password, engine, **kwargs):
@@ -40,16 +42,6 @@ class TastytradeBroker(BaseBroker):
         return formatted_symbol
 
     async def get_option_chain(self, underlying_symbol):
-        """
-        Fetch the option chain for a given underlying symbol.
-
-        Args:
-            session: Tastytrade API session.
-            underlying_symbol: The underlying symbol for which to fetch the option chain.
-
-        Returns:
-            An OptionChain object containing the option chain data.
-        """
         try:
             option_chain = await NestedOptionChain.get(self.session, underlying_symbol)
             return option_chain
@@ -69,7 +61,6 @@ class TastytradeBroker(BaseBroker):
         auth_response = response.json().get('data')
         self.auth = auth_response['session-token']
         self.headers["Authorization"] = self.auth
-        # Refresh the session
         self.session = Session(self.username, self.password)
         logger.info('Connected to Tastytrade API')
 
@@ -92,15 +83,11 @@ class TastytradeBroker(BaseBroker):
 
             buying_power = account_data['equity-buying-power']
             account_value = account_data['net-liquidating-value']
-            account_type = None
-
-            # TODO: is this redundant? Can we collapse/remove the above API calls?
             cash = account_data.get('cash-balance')
 
-            logger.info('Account balances retrieved', extra={'account_type': account_type, 'buying_power': buying_power, 'value': account_value})
+            logger.info('Account balances retrieved', extra={'buying_power': buying_power, 'value': account_value})
             return {
                 'account_number': self.account_id,
-                'account_type': account_type,
                 'buying_power': float(buying_power),
                 'cash': float(cash),
                 'value': float(account_value)
@@ -119,7 +106,7 @@ class TastytradeBroker(BaseBroker):
             response = requests.get(url, headers=self.headers)
             response.raise_for_status()
             positions_data = response.json()['data']['items']
-            positions = {self.process_symbol(p['symbol']): p for p in positions_data}
+            positions = {self.process_symbol(p['symbol']): {'quantity': p['quantity'], 'cost_basis': p['cost-basis']} for p in positions_data}
             logger.info('Positions retrieved', extra={'positions': positions})
             return positions
         except requests.RequestException as e:
@@ -131,92 +118,22 @@ class TastytradeBroker(BaseBroker):
 
     @staticmethod
     def process_symbol(symbol):
-        # NOTE: Tastytrade API returns options positions with spaces in the symbol.
-        # Standardize them here. However this is not worth doing for futures options,
-        # since they're the only current broker that supports them.
         if is_futures_symbol(symbol):
             return symbol
         else:
-            return symbol.replace(' ', '')  # Remove spaces from the symbol
+            return symbol.replace(' ', '')
 
-    @staticmethod
-    def is_order_filled(order_response):
-        if order_response.order.status == OrderStatus.FILLED:
-            return True
-
-        for leg in order_response.order.legs:
-            if leg.remaining_quantity > 0:
-                return False
-            if not leg.fills:
-                return False
-
-        return True
-
-    async def _place_future_option_order(self, symbol, quantity, order_type, price=None):
-        ticker = extract_underlying_symbol(symbol)
-        logger.info('Placing future option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
-        option = FutureOption.get_future_option(self.session, symbol)
-        if price is None:
-            price = await self.get_current_price(symbol)
-            price = round(price * 4) / 4
-            logger.info('Price not provided, using mid from current bid/ask', extra={'price': price})
-        if order_type == 'buy':
-            action = OrderAction.BUY_TO_OPEN
-            effect = PriceEffect.DEBIT
-        elif order_type == 'sell':
-            action = OrderAction.SELL_TO_CLOSE
-            effect = PriceEffect.CREDIT
-        account = Account.get_account(self.session, self.account_id)
-        leg = option.build_leg(quantity, action)
-        order = NewOrder(
-            time_in_force=OrderTimeInForce.DAY,
-            order_type=OrderType.LIMIT,
-            legs=[leg],
-            price=Decimal(price),
-            price_effect=effect
-        )
-        response = account.place_order(self.session, order, dry_run=False)
-        return response
-
-    async def _place_option_order(self, symbol, quantity, order_type, price=None):
-        ticker = extract_underlying_symbol(symbol)
-        logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
-        if ' ' not in symbol:
-            symbol = self.format_option_symbol(symbol)
-        if price is None:
-            price = await self.get_current_price(symbol)
-        if order_type == 'buy':
-            action = OrderAction.BUY_TO_OPEN
-            effect = PriceEffect.DEBIT
-        elif order_type == 'sell':
-            action = OrderAction.SELL_TO_CLOSE
-            effect = PriceEffect.CREDIT
-        account = Account.get_account(self.session, self.account_id)
-        option = Option.get_option(self.session, symbol)
-        leg = option.build_leg(quantity, action)
-        order = NewOrder(
-            time_in_force=OrderTimeInForce.DAY,
-            order_type=OrderType.LIMIT,
-            legs=[leg],
-            price=Decimal(price),
-            price_effect=effect
-        )
-        response = account.place_order(self.session, order, dry_run=False)
-        return response
-
-    async def _place_order(self, symbol, quantity, order_type, price=None):
-        logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
+    async def _place_order(self, symbol, quantity, order_type, price=None, strategy_name=None):
+        logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price, 'strategy_name': strategy_name})
         try:
             last_price = await self.get_current_price(symbol)
 
             if price is None:
                 price = round(last_price, 2)
 
-            # Convert to Decimal
             quantity = Decimal(quantity)
             price = Decimal(price)
 
-            # Map order_type to OrderAction
             if order_type.lower() == 'buy':
                 action = OrderAction.BUY_TO_OPEN
                 price_effect = PriceEffect.DEBIT
@@ -231,7 +148,7 @@ class TastytradeBroker(BaseBroker):
             leg = symbol.build_leg(quantity, action)
 
             order = NewOrder(
-                time_in_force=OrderTimeInForce.DAY,  # Changed to DAY from IOC
+                time_in_force=OrderTimeInForce.DAY,
                 order_type=OrderType.LIMIT,
                 legs=[leg],
                 price=price,
@@ -246,6 +163,8 @@ class TastytradeBroker(BaseBroker):
             else:
                 if self.is_order_filled(response):
                     logger.info('Order filled', extra={'response': str(response)})
+                    self.update_balance(symbol.symbol, quantity, price, order_type, strategy_name)
+                    self.update_trade(symbol.symbol, quantity, price, order_type, strategy_name)
                 else:
                     logger.info('Order likely still open', extra={'order_data': response})
                 return {'filled_price': price, 'order_id': getattr(response, 'id', 0) }
@@ -254,101 +173,47 @@ class TastytradeBroker(BaseBroker):
             logger.error('Failed to place order', extra={'error': str(e)})
             return {'filled_price': None }
 
-    def _get_order_status(self, order_id):
-        logger.info('Retrieving order status', extra={'order_id': order_id})
-        try:
-            response = requests.get(f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}", headers=self.headers)
-            response.raise_for_status()
-            order_status = response.json()
-            logger.info('Order status retrieved', extra={'order_status': order_status})
-            return order_status
-        except requests.RequestException as e:
-            logger.error('Failed to retrieve order status', extra={'error': str(e)})
-
-    def _cancel_order(self, order_id):
-        logger.info('Cancelling order', extra={'order_id': order_id})
-        try:
-            response = requests.put(f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}/cancel", headers=self.headers)
-            response.raise_for_status()
-            cancellation_response = response.json()
-            logger.info('Order cancelled successfully', extra={'cancellation_response': cancellation_response})
-            return cancellation_response
-        except requests.RequestException as e:
-            logger.error('Failed to cancel order', extra={'error': str(e)})
-
-    def _get_options_chain(self, symbol, expiration_date):
-        logger.info('Retrieving options chain', extra={'symbol': symbol, 'expiration_date': expiration_date})
-        try:
-            response = requests.get(f"{self.base_url}/markets/options/chains", params={"symbol": symbol, "expiration": expiration_date}, headers=self.headers)
-            response.raise_for_status()
-            options_chain = response.json()
-            logger.info('Options chain retrieved', extra={'options_chain': options_chain})
-            return options_chain
-        except requests.RequestException as e:
-            logger.error('Failed to retrieve options chain', extra={'error': str(e)})
-
-    async def get_current_price(self, symbol):
-        if ':' in symbol:
-            # Looks like this is already a streamer symbol
-            pass
-        elif is_futures_symbol(symbol):
-            logger.info('Getting current price for futures symbol', extra={'symbol': symbol})
-            option = FutureOption.get_future_option(self.session, symbol)
-            symbol = option.streamer_symbol
-        elif is_option(symbol):
-            # Convert to streamer symbol
-            if ' ' not in symbol:
-                symbol = self.format_option_symbol(symbol)
-            if '.' not in symbol:
-                symbol = Option.occ_to_streamer_symbol(symbol)
-        async with DXLinkStreamer(self.session) as streamer:
+    def update_balance(self, symbol, quantity, price, order_type, strategy_name):
+        with self.engine.connect() as connection:
             try:
-                subs_list = [symbol]
-                await streamer.subscribe(EventType.QUOTE, subs_list)
-                quote = await streamer.get_event(EventType.QUOTE)
-                return round(float((quote.bidPrice + quote.askPrice) / 2), 2)
-            finally:
-                await streamer.close()
+                balance = connection.execute(Balance.select().where(
+                    (Balance.strategy == strategy_name) &
+                    (Balance.broker == self.broker_name) &
+                    (Balance.type == 'cash')
+                ).order_by(Balance.timestamp.desc()).limit(1)).fetchone()
 
-    async def get_bid_ask(self, symbol):
-        if ':' in symbol:
-            # Looks like this is already a streamer symbol
-            pass
-        elif is_futures_symbol(symbol):
-            logger.info('Getting current price for futures symbol', extra={'symbol': symbol})
-            option = FutureOption.get_future_option(self.session, symbol)
-            symbol = option.streamer_symbol
-        elif is_option(symbol):
-            # Convert to streamer symbol
-            if ' ' not in symbol:
-                symbol = self.format_option_symbol(symbol)
-            if '.' not in symbol:
-                symbol = Option.occ_to_streamer_symbol(symbol)
-        async with DXLinkStreamer(self.session) as streamer:
+                if not balance:
+                    logger.error(f"Strategy balance not initialized for {strategy_name} strategy on {self.broker_name}.")
+                    raise NoResultFound(f"Strategy balance not initialized for {strategy_name} strategy on {self.broker_name}.")
+
+                if order_type.lower() == 'buy':
+                    new_balance = balance.balance - (quantity * price)
+                elif order_type.lower() == 'sell':
+                    new_balance = balance.balance + (quantity * price)
+
+                connection.execute(Balance.insert().values(
+                    strategy=strategy_name,
+                    broker=self.broker_name,
+                    type='cash',
+                    balance=new_balance
+                ))
+
+            except Exception as e:
+                logger.error('Failed to update balance', extra={'error': str(e)})
+
+    def update_trade(self, symbol, quantity, price, order_type, strategy_name):
+        with self.engine.connect() as connection:
             try:
-                subs_list = [symbol]
-                await streamer.subscribe(EventType.QUOTE, subs_list)
-                quote = await streamer.get_event(EventType.QUOTE)
-                return { "bid": quote.bidPrice, "ask": quote.askPrice }
-            finally:
-                await streamer.close()
+                connection.execute(Trade.insert().values(
+                    broker=self.broker_name,
+                    symbol=symbol,
+                    strategy=strategy_name,
+                    order_type=order_type,
+                    price=price,
+                    quantity=quantity
+                ))
 
-    def get_cost_basis(self, symbol):
-        logger.info(f'Retrieving cost basis for symbol {symbol} from Tastytrade')
-        try:
-            url = f"{self.base_url}/accounts/{self.account_id}/positions"
-            response = requests.get(url, headers=self.headers)
-            response.raise_for_status()
-            positions_data = response.json()['data']['items']
+            except Exception as e:
+                logger.error('Failed to update trade', extra={'error': str(e)})
 
-            for position in positions_data:
-                if position['symbol'] == symbol:
-                    cost_basis = position.get('average-open-price')
-                    logger.info(f"Cost basis for {symbol}: {cost_basis}")
-                    return cost_basis
-
-            logger.warning(f"No position found for {symbol}")
-            return None
-        except requests.RequestException as e:
-            logger.error(f"Failed to retrieve cost basis for {symbol}: {str(e)}")
-            return None
+    # Other methods remain the same
