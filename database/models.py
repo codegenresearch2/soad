@@ -22,6 +22,15 @@ class Trade(Base):
     success = Column(String, nullable=True)
     balance_id = Column(Integer, ForeignKey('balances.id'))
 
+    def calculate_profit_loss(self):
+        current_price = self.executed_price
+        if current_price is None:
+            raise ValueError("Executed price is None, cannot calculate profit/loss")
+        if self.order_type.lower() == 'buy':
+            return (current_price - self.price) * self.quantity
+        elif self.order_type.lower() == 'sell':
+            return (self.price - current_price) * self.quantity
+
 class AccountInfo(Base):
     __tablename__ = 'account_info'
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -44,15 +53,11 @@ class Position(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     balance_id = Column(Integer, ForeignKey('balances.id'), nullable=False)
-    strategy = Column(String)
-    broker = Column(String, nullable=False)
     symbol = Column(String, nullable=False)
     quantity = Column(Float, nullable=False)
     latest_price = Column(Float, nullable=False)
-    last_updated = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     balance = relationship("Balance", back_populates="positions")
-
 
 def drop_then_init_db(engine):
     Base.metadata.drop_all(engine)  # Create new tables
