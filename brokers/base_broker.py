@@ -1,46 +1,68 @@
 from abc import ABC, abstractmethod
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.sql import and_
 from database.db_manager import DBManager
 from database.models import Trade, AccountInfo, Balance, Position
 from datetime import datetime
 
 class BaseBroker(ABC):
-    def __init__(self, api_key, secret_key, broker_name, engine, prevent_day_trading=False):
+    def __init__(self, api_key, secret_key, broker_name, engine):
         self.api_key = api_key
         self.secret_key = secret_key
         self.broker_name = broker_name
         self.db_manager = DBManager(engine)
         self.Session = sessionmaker(bind=engine)
         self.account_id = None
-        self.prevent_day_trading = False
 
     @abstractmethod
     def connect(self):
         pass
 
     @abstractmethod
-    def _get_account_info(self):
+    def get_account_info(self):
         pass
 
     @abstractmethod
-    def _place_order(self, symbol, quantity, order_type, price=None):
+    def place_order(self, symbol, quantity, order_type, strategy, price=None):
         pass
 
     @abstractmethod
-    def _get_order_status(self, order_id):
+    def get_order_status(self, order_id):
         pass
 
     @abstractmethod
-    def _cancel_order(self, order_id):
+    def cancel_order(self, order_id):
         pass
 
     @abstractmethod
-    def _get_options_chain(self, symbol, expiration_date):
+    def get_options_chain(self, symbol, expiration_date):
         pass
 
     @abstractmethod
     def get_current_price(self, symbol):
+        pass
+
+    def _get_account_info(self):
+        # Implement the logic to get account information
+        pass
+
+    def _place_order(self, symbol, quantity, order_type, price=None):
+        # Implement the logic to place an order
+        pass
+
+    def _get_order_status(self, order_id):
+        # Implement the logic to get order status
+        pass
+
+    def _cancel_order(self, order_id):
+        # Implement the logic to cancel an order
+        pass
+
+    def _get_options_chain(self, symbol, expiration_date):
+        # Implement the logic to get options chain
+        pass
+
+    def get_current_price(self, symbol):
+        # Implement the logic to get current price
         pass
 
     def get_account_info(self):
@@ -48,60 +70,16 @@ class BaseBroker(ABC):
         self.db_manager.add_account_info(AccountInfo(broker=self.broker_name, value=account_info['value']))
         return account_info
 
-    def has_bought_today(self, symbol):
-        today = datetime.now().date()
-        with self.Session() as session:
-            trades = session.query(Trade).filter(
-                and_(
-                    Trade.symbol == symbol,
-                    Trade.broker == self.broker_name,
-                    Trade.order_type == 'buy',
-                    Trade.timestamp >= today
-                )
-            ).all()
-            return len(trades) > 0
-
-    def update_positions(self, session, trade):
-        position = session.query(Position).filter_by(symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy).first()
-
-        if trade.order_type == 'buy':
-            if position:
-                position.quantity += trade.quantity
-                position.latest_price = trade.executed_price
-                position.timestamp = datetime.now()
-            else:
-                position = Position(
-                    broker=self.broker_name,
-                    strategy=trade.strategy,
-                    symbol=trade.symbol,
-                    quantity=trade.quantity,
-                    latest_price=trade.executed_price,
-                )
-                session.add(position)
-        elif trade.order_type == 'sell':
-            if position:
-                position.quantity -= trade.quantity
-                position.latest_price = trade.executed_price
-                if position.quantity < 0:
-                    raise ValueError("Sell quantity exceeds current position quantity.")
-
-        session.commit()
-
     def place_order(self, symbol, quantity, order_type, strategy, price=None):
-        # Check for day trading
-        if self.prevent_day_trading and order_type == 'sell':
-            if self.has_bought_today(symbol):
-                raise ValueError("Day trading is not allowed. Cannot sell positions opened today.")
-
         response = self._place_order(symbol, quantity, order_type, price)
         
         trade = Trade(
             symbol=symbol,
             quantity=quantity,
             price=price,
-            executed_price=response['filled_price'],
+            executed_price=response.get('filled_price', price),
             order_type=order_type,
-            status='filled',
+            status=response.get('status', 'pending'),
             timestamp=datetime.now(),
             broker=self.broker_name,
             strategy=strategy,
@@ -128,7 +106,23 @@ class BaseBroker(ABC):
             session.commit()
 
             # Update positions
-            self.update_positions(session, trade, order_type)
+            position = session.query(Position).filter_by(balance_id=balance.id, symbol=symbol).first()
+            if not position:
+                position = Position(
+                    balance_id=balance.id,
+                    symbol=symbol,
+                    quantity=quantity,
+                    latest_price=response.get('filled_price', price)
+                )
+                session.add(position)
+            else:
+                if order_type == 'buy':
+                    position.quantity += quantity
+                elif order_type == 'sell':
+                    position.quantity -= quantity
+                position.latest_price = response.get('filled_price', price)
+
+            session.commit()
 
         return response
 
@@ -156,9 +150,9 @@ class BaseBroker(ABC):
         if not trade:
             return
 
-        executed_price = order_info.get('filled_price', trade.price)  # Match the correct key
+        executed_price = order_info.get('filled_price', trade.price)
         if executed_price is None:
-            executed_price = trade.price  # Ensure we have a valid executed price
+            executed_price = trade.price
 
         trade.executed_price = executed_price
         profit_loss = self.db_manager.calculate_profit_loss(trade)
