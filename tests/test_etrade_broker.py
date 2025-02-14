@@ -7,6 +7,7 @@ class TestEtradeBroker(unittest.TestCase):
     def setUp(self):
         self.broker = EtradeBroker('api_key', 'secret_key')
 
+    @patch('brokers.etrade_broker.requests.post')
     def mock_connect(self, mock_post):
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -15,6 +16,7 @@ class TestEtradeBroker(unittest.TestCase):
 
     @patch('brokers.etrade_broker.requests.get')
     def test_connect(self, mock_get):
+        self.mock_connect(mock_get)
         self.broker.connect()
         self.assertTrue(hasattr(self.broker, 'auth'))
 
@@ -38,14 +40,14 @@ class TestEtradeBroker(unittest.TestCase):
     @patch('brokers.etrade_broker.requests.post')
     @patch('brokers.etrade_broker.requests.get')
     @patch('brokers.etrade_broker.requests.post')
-    def skip_test_place_order(self, mock_post_place_order, mock_get_account_info, mock_post_connect):
+    def test_place_order(self, mock_post_place_order, mock_get_account_info, mock_post_connect):
         self.mock_connect(mock_post_connect)
         mock_get_account_info.return_value = MagicMock(json=MagicMock(return_value={
             'accountListResponse': {'accounts': [{'accountId': '12345'}]}
         }))
         mock_response = MagicMock()
         mock_response.json.return_value = {'status': 'filled', 'filled_price': 155.00}
-        mock_post_place_order.side_effect = [mock_post_connect.return_value, mock_response]
+        mock_post_place_order.side_effect = [mock_response]
 
         self.broker.connect()
         self.broker.get_account_info()
