@@ -16,8 +16,8 @@ class TestTradierBroker(unittest.TestCase):
     @patch('brokers.tradier_broker.requests.post')
     def test_connect(self, mock_post):
         self.mock_connect(mock_post)
-        self.broker.connect()
-        self.assertTrue(hasattr(self.broker, 'headers'))
+        with self.broker.session_manager() as session:
+            self.assertTrue(hasattr(session, 'headers'))
 
     @patch('brokers.tradier_broker.requests.get')
     @patch('brokers.tradier_broker.requests.post')
@@ -27,27 +27,27 @@ class TestTradierBroker(unittest.TestCase):
         mock_response.json.return_value = {'profile': {'account': {'account_number': '12345'}}}
         mock_get.return_value = mock_response
 
-        self.broker.connect()
-        account_info = self.broker.get_account_info()
-        self.assertEqual(account_info, {'profile': {'account': {'account_number': '12345'}}})
-        self.assertEqual(self.broker.account_id, '12345')
+        with self.broker.session_manager() as session:
+            account_info = session.get_account_info()
+            self.assertEqual(account_info, {'profile': {'account': {'account_number': '12345'}}})
+            self.assertEqual(session.account_id, '12345')
 
     @patch('brokers.tradier_broker.requests.post')
     @patch('brokers.tradier_broker.requests.get')
     @patch('brokers.tradier_broker.requests.post')
-    def skip_test_place_order(self, mock_post_place_order, mock_get_account_info, mock_post_connect):
+    def test_place_order(self, mock_post_place_order, mock_get_account_info, mock_post_connect):
         self.mock_connect(mock_post_connect)
         mock_get_account_info.return_value = MagicMock(json=MagicMock(return_value={
             'profile': {'account': {'account_number': '12345'}}
         }))
         mock_response = MagicMock()
         mock_response.json.return_value = {'status': 'filled', 'filled_price': 155.00}
-        mock_post_place_order.side_effect = [mock_response.return_value]
+        mock_post_place_order.side_effect = [mock_post_connect.return_value, mock_response]
 
-        self.broker.connect()
-        self.broker.get_account_info()
-        order_info = self.broker.place_order('AAPL', 10, 'buy', 'example_strategy', 150.00)
-        self.assertEqual(order_info, {'status': 'filled', 'filled_price': 155.00})
+        with self.broker.session_manager() as session:
+            session.get_account_info()
+            order_info = session.place_order('AAPL', 10, 'buy', 'example_strategy', 150.00)
+            self.assertEqual(order_info, {'status': 'filled', 'filled_price': 155.00})
 
     @patch('brokers.tradier_broker.requests.get')
     @patch('brokers.tradier_broker.requests.post')
@@ -57,9 +57,9 @@ class TestTradierBroker(unittest.TestCase):
         mock_response.json.return_value = {'status': 'completed'}
         mock_get.return_value = mock_response
 
-        self.broker.connect()
-        order_status = self.broker.get_order_status('order_id')
-        self.assertEqual(order_status, {'status': 'completed'})
+        with self.broker.session_manager() as session:
+            order_status = session.get_order_status('order_id')
+            self.assertEqual(order_status, {'status': 'completed'})
 
     @patch('brokers.tradier_broker.requests.delete')
     @patch('brokers.tradier_broker.requests.post')
@@ -69,9 +69,9 @@ class TestTradierBroker(unittest.TestCase):
         mock_response.json.return_value = {'status': 'cancelled'}
         mock_delete.return_value = mock_response
 
-        self.broker.connect()
-        cancel_status = self.broker.cancel_order('order_id')
-        self.assertEqual(cancel_status, {'status': 'cancelled'})
+        with self.broker.session_manager() as session:
+            cancel_status = session.cancel_order('order_id')
+            self.assertEqual(cancel_status, {'status': 'cancelled'})
 
     @patch('brokers.tradier_broker.requests.get')
     @patch('brokers.tradier_broker.requests.post')
@@ -81,9 +81,9 @@ class TestTradierBroker(unittest.TestCase):
         mock_response.json.return_value = {'options': 'chain'}
         mock_get.return_value = mock_response
 
-        self.broker.connect()
-        options_chain = self.broker.get_options_chain('AAPL', '2024-12-20')
-        self.assertEqual(options_chain, {'options': 'chain'})
+        with self.broker.session_manager() as session:
+            options_chain = session.get_options_chain('AAPL', '2024-12-20')
+            self.assertEqual(options_chain, {'options': 'chain'})
 
 if __name__ == '__main__':
     unittest.main()
