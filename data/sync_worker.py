@@ -23,11 +23,19 @@ class BrokerService:
 
     async def get_latest_price(self, broker_name, symbol):
         broker_instance = await self.get_broker_instance(broker_name)
-        return await self._fetch_price(broker_instance, symbol)
+        try:
+            return await broker_instance.get_latest_price(symbol)
+        except Exception as e:
+            logger.error(f'Error fetching latest price for {symbol} from {broker_name}: {e}')
+            return None
 
     async def get_account_info(self, broker_name):
         broker_instance = await self.get_broker_instance(broker_name)
-        return await broker_instance.get_account_info()
+        try:
+            return await broker_instance.get_account_info()
+        except Exception as e:
+            logger.error(f'Error fetching account info for {broker_name}: {e}')
+            return {}
 
     async def _fetch_price(self, broker_instance, symbol):
         if asyncio.iscoroutinefunction(broker_instance.get_current_price):
@@ -45,8 +53,12 @@ class PositionService:
         await self._remove_db_positions(session, broker, db_positions, broker_positions)
         await self._add_missing_positions(session, broker, db_positions, broker_positions, now)
         session.add_all(db_positions.values())  # Add updated positions to the session
-        await session.commit()
-        logger.info(f"Reconciliation for broker {broker} completed.")
+        try:
+            await session.commit()
+            logger.info(f"Reconciliation for broker {broker} completed.")
+        except Exception as e:
+            logger.error(f"Failed to commit positions for broker {broker}: {e}")
+            await session.rollback()
 
     async def _get_positions(self, session, broker):
         broker_instance = await self.broker_service.get_broker_instance(broker)
@@ -92,46 +104,29 @@ class PositionService:
         session.add(new_position)
         logger.info(f"Added uncategorized position to DB: {new_position.symbol}")
 
-    async def update_position_cost_basis(self, session, position, broker_instance):
-        """
-        Fetch and update the cost basis for a position.
-        """
-        logger.debug(f'Fetching cost basis for {position.symbol}')
-        try:
-            cost_basis = broker_instance.get_cost_basis(position.symbol)
-            if cost_basis is not None:
-                position.cost_basis = cost_basis
-                logger.info(f'Updated cost basis for {position.symbol}: {cost_basis}')
-                session.add(position)
-            else:
-                logger.error(f'Failed to retrieve cost basis for {position.symbol}')
-        except Exception as e:
-            logger.error(f'Error updating cost basis for {position.symbol}: {e}')
-
     async def update_position_prices_and_volatility(self, session, positions, timestamp):
         now_naive = self._strip_timezone(timestamp or datetime.now())
-        await self._update_prices_and_volatility(session, positions, now_naive)
-        await session.commit()
-        logger.info('Completed updating latest prices and volatility')
+        try:
+            await self._update_prices_and_volatility(session, positions, now_naive)
+            await session.commit()
+            logger.info('Completed updating latest prices and volatility')
+        except Exception as e:
+            logger.error(f"Failed to commit position updates: {e}")
+            await session.rollback()
 
     def _strip_timezone(self, timestamp):
         return timestamp.replace(tzinfo=None)
-
-    async def update_cost_basis(self, session, position):
-        broker_instance = await self.broker_service.get_broker_instance(position.broker)
-        await self.update_position_cost_basis(session, position, broker_instance)
 
     async def _update_prices_and_volatility(self, session, positions, now_naive):
         for position in positions:
             try:
                 await self._update_position_price(session, position, now_naive)
-                await self.update_cost_basis(session, position)
-            except Exception:
-                logger.exception(f"Error processing position {position.symbol}")
+            except Exception as e:
+                logger.exception(f"Error processing position {position.symbol}: {e}")
 
     async def _update_position_price(self, session, position, now_naive):
         latest_price = await self._fetch_and_log_price(position)
-        if not latest_price:
+        if latest_price is None:
             return
 
         position.latest_price, position.last_updated = latest_price, now_naive
@@ -142,9 +137,10 @@ class PositionService:
         latest_price = await self.broker_service.get_latest_price(position.broker, position.symbol)
         if latest_price is None:
             logger.error(f'Could not get latest price for {position.symbol}')
+            return None
         else:
             logger.debug(f'Updated latest price for {position.symbol} to {latest_price}')
-        return latest_price
+            return latest_price
 
     async def _update_volatility_and_underlying_price(self, session, position, underlying_symbol):
         latest_underlying_price = await self.broker_service.get_latest_price(position.broker, underlying_symbol)
@@ -183,8 +179,12 @@ class BalanceService:
         strategies = await self._get_strategies(session, broker)
         await self._update_each_strategy_balance(session, broker, strategies, timestamp)
         await self.update_uncategorized_balances(session, broker, timestamp)
-        await session.commit()
-        logger.info(f"Updated all strategy balances for broker {broker}")
+        try:
+            await session.commit()
+            logger.info(f"Updated all strategy balances for broker {broker}")
+        except Exception as e:
+            logger.error(f"Failed to commit balance updates for broker {broker}: {e}")
+            await session.rollback()
 
     async def _get_strategies(self, session, broker):
         strategies_result = await session.execute(
@@ -307,18 +307,22 @@ async def _run_sync_worker_iteration(Session, position_service, balance_service,
         logger.info('Session started')
         await _fetch_and_update_positions(session, position_service, now)
         await _reconcile_brokers_and_update_balances(session, position_service, balance_service, brokers, now)
-        # commit anything we forgot about
-        await session.commit()
     logger.info('Sync worker completed an iteration')
 
 
 async def _fetch_and_update_positions(session, position_service, now):
     positions = await session.execute(select(Position))
     logger.info('Positions fetched')
-    await position_service.update_position_prices_and_volatility(session, positions.scalars(), now)
+    try:
+        await position_service.update_position_prices_and_volatility(session, positions.scalars(), now)
+    except Exception as e:
+        logger.error(f"Failed to update positions: {e}")
 
 
 async def _reconcile_brokers_and_update_balances(session, position_service, balance_service, brokers, now):
     for broker in brokers:
-        await position_service.reconcile_positions(session, broker)
-        await balance_service.update_all_strategy_balances(session, broker, now)
+        try:
+            await position_service.reconcile_positions(session, broker)
+            await balance_service.update_all_strategy_balances(session, broker, now)
+        except Exception as e:
+            logger.error(f"Failed to reconcile broker {broker}: {e}")
