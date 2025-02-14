@@ -18,7 +18,6 @@ class OrderManager:
         logger.info('Reconciling orders', extra={'orders': orders})
         for order in orders:
             await self.reconcile_order(order)
-        # Commit the transaction
 
     async def reconcile_order(self, order):
         logger.info(f'Reconciling order {order.id}', extra={
@@ -29,7 +28,8 @@ class OrderManager:
             'quantity': order.quantity,
             'price': order.price,
             'side': order.side,
-            'status': order.status
+            'status': order.status,
+            'execution_style': order.execution_style
         })
 
         # Calculate the stale threshold
@@ -52,6 +52,7 @@ class OrderManager:
             logger.info(f'Marking order {order.id} as stale, missing broker_id', extra={'order_id': order.id})
             await self.db_manager.update_trade_status(order.id, 'stale')
             return
+
         filled = await broker.is_order_filled(order.broker_id)
         if filled:
             try:
@@ -68,14 +69,8 @@ class OrderManager:
                     await broker.cancel_order(order.broker_id)
                     await self.db_manager.update_trade_status(order.id, 'cancelled')
                     mid_price = await broker.get_mid_price(order.symbol)
-                    await broker.place_order(
-                        symbol=order.symbol,
-                        quantity=order.quantity,
-                        side=order.side,
-                        strategy=order.strategy,
-                        price=round(mid_price, 2),
-                        order_type='limit',
-                        execution_style=order.execution_style
+                    await self.place_order(
+                        order.symbol, order.quantity, order.side, order.strategy, round(mid_price, 2), order_type='limit', execution_style=order.execution_style
                     )
                 except Exception as e:
                     logger.error(f'Error cancelling pegged order {order.id}', extra={'error': str(e)})
@@ -84,6 +79,15 @@ class OrderManager:
         logger.info('Running OrderManager')
         orders = await self.db_manager.get_open_trades()
         await self.reconcile_orders(orders)
+
+    async def place_order(self, symbol, quantity, side, strategy, price=None, order_type='limit', execution_style=''):
+        broker = self.brokers[strategy.broker]
+        if broker.is_option(symbol):
+            return await broker.place_option_order(symbol, quantity, side, strategy, price, order_type, execution_style)
+        elif broker.is_futures_symbol(symbol):
+            return await broker.place_future_option_order(symbol, quantity, side, strategy, price, order_type, execution_style)
+        else:
+            return await broker.place_order(symbol, quantity, side, strategy, price, order_type, execution_style)
 
 async def run_order_manager(engine, brokers):
     order_manager = OrderManager(engine, brokers)
