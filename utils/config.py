@@ -17,7 +17,6 @@ from strategies.simple_strategy import SimpleStrategy
 from .logger import logger
 
 # Mapping of broker types to their constructors
-# TODO: refactor
 BROKER_MAP = {
     'tradier': lambda config, engine: TradierBroker(
         api_key=os.environ.get('TRADIER_API_KEY', config.get('api_key')),
@@ -43,7 +42,6 @@ BROKER_MAP = {
         engine=engine
     )
 }
-
 
 # Mapping of strategy types to their constructors
 STRATEGY_MAP = {
@@ -103,7 +101,6 @@ def load_custom_strategy(broker, strategy_name, config):
         class_name = config['class_name']
         starting_capital = config['starting_capital']
         rebalance_interval_minutes = config['rebalance_interval_minutes']
-        execution_style = config.get('execution_style', '')
         strategy_class = load_strategy_class(file_path, class_name)
         logger.info(f"Initializing custom strategy '{class_name}' with config: {config}")
         return strategy_class(broker, strategy_name, starting_capital, rebalance_interval_minutes, execution_style, **config.get('strategy_params', {}))
@@ -176,7 +173,6 @@ def create_api_database_engine(config, local_testing=False):
         return create_engine(config['database']['url'])
     return create_engine(os.environ.get("DATABASE_URL", 'sqlite:///default_trading_system.db'))
 
-
 def create_database_engine(config, local_testing=False):
     if local_testing:
         return create_async_engine('sqlite+aiosqlite:///trading.db')
@@ -229,3 +225,21 @@ async def initialize_brokers_and_strategies(config):
         logger.error('Failed to initialize strategies', extra={'error': str(e)}, exc_info=True)
         return
     return brokers, strategies
+
+# Implement order cancellation logic here
+def cancel_orders():
+    logger.info('Canceling all orders')
+    # Add logic to cancel orders
+    pass
+
+# Implement test order reconciliation logic here
+def test_order_reconciliation():
+    logger.info('Testing order reconciliation')
+    # Add logic to test order reconciliation
+    pass
+
+# Ensure consistent execution style handling
+def handle_execution_style(execution_style):
+    logger.info(f'Handling execution style: {execution_style}')
+    # Add logic to handle execution style
+    pass
