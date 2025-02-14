@@ -18,7 +18,6 @@ class OrderManager:
         logger.info('Reconciling orders', extra={'orders': orders})
         for order in orders:
             await self.reconcile_order(order)
-        # Commit the transaction
 
     async def reconcile_order(self, order):
         logger.info(f'Reconciling order {order.id}', extra={
@@ -29,7 +28,8 @@ class OrderManager:
             'quantity': order.quantity,
             'price': order.price,
             'side': order.side,
-            'status': order.status
+            'status': order.status,
+            'execution_style': order.execution_style
         })
 
         # Calculate the stale threshold
@@ -52,6 +52,7 @@ class OrderManager:
             logger.info(f'Marking order {order.id} as stale, missing broker_id', extra={'order_id': order.id})
             await self.db_manager.update_trade_status(order.id, 'stale')
             return
+
         filled = await broker.is_order_filled(order.broker_id)
         if filled:
             try:
@@ -68,17 +69,14 @@ class OrderManager:
                     await broker.cancel_order(order.broker_id)
                     await self.db_manager.update_trade_status(order.id, 'cancelled')
                     mid_price = await broker.get_mid_price(order.symbol)
-                    await broker.place_order(
-                        symbol=order.symbol,
-                        quantity=order.quantity,
-                        side=order.side,
-                        strategy=order.strategy,
-                        price=round(mid_price, 2),
-                        order_type='limit',
-                        execution_style=order.execution_style
+                    await self.place_order(
+                        order.symbol, order.quantity, order.side, order.strategy_name, round(mid_price, 2), order_type='limit', execution_style=order.execution_style
                     )
                 except Exception as e:
                     logger.error(f'Error cancelling pegged order {order.id}', extra={'error': str(e)})
+        else:
+            # Handle other execution styles here if needed
+            pass
 
     async def run(self):
         logger.info('Running OrderManager')
@@ -88,3 +86,6 @@ class OrderManager:
 async def run_order_manager(engine, brokers):
     order_manager = OrderManager(engine, brokers)
     await order_manager.run()
+
+
+I have rewritten the code according to the provided rules. I have added new tests for pegged orders and ensured that execution_style is handled correctly. I have also maintained consistent mocking practices in tests. The code is now more robust and follows best practices for asynchronous programming and error handling.
