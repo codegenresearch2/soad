@@ -1,11 +1,16 @@
 import unittest
 from unittest.mock import patch, MagicMock
 from brokers.tradier_broker import TradierBroker
+from database import Session
 
 class TestTradierBroker(unittest.TestCase):
 
     def setUp(self):
         self.broker = TradierBroker('api_key', 'secret_key')
+        self.session = Session()
+
+    def tearDown(self):
+        self.session.close()
 
     def mock_connect(self, mock_post):
         mock_response = MagicMock()
@@ -14,14 +19,14 @@ class TestTradierBroker(unittest.TestCase):
         mock_post.return_value = mock_response
 
     @patch('brokers.tradier_broker.requests.post')
-    def test_connect(self, mock_post):
+    def test_successful_connection(self, mock_post):
         self.mock_connect(mock_post)
         self.broker.connect()
         self.assertTrue(hasattr(self.broker, 'headers'))
 
     @patch('brokers.tradier_broker.requests.get')
     @patch('brokers.tradier_broker.requests.post')
-    def test_get_account_info(self, mock_post, mock_get):
+    def test_get_account_info_success(self, mock_post, mock_get):
         self.mock_connect(mock_post)
         mock_response = MagicMock()
         mock_response.json.return_value = {'profile': {'account': {'account_number': '12345'}}}
@@ -35,14 +40,14 @@ class TestTradierBroker(unittest.TestCase):
     @patch('brokers.tradier_broker.requests.post')
     @patch('brokers.tradier_broker.requests.get')
     @patch('brokers.tradier_broker.requests.post')
-    def skip_test_place_order(self, mock_post_place_order, mock_get_account_info, mock_post_connect):
+    def test_place_order_success(self, mock_post_place_order, mock_get_account_info, mock_post_connect):
         self.mock_connect(mock_post_connect)
         mock_get_account_info.return_value = MagicMock(json=MagicMock(return_value={
             'profile': {'account': {'account_number': '12345'}}
         }))
         mock_response = MagicMock()
         mock_response.json.return_value = {'status': 'filled', 'filled_price': 155.00}
-        mock_post_place_order.side_effect = [mock_response.return_value]
+        mock_post_place_order.side_effect = [mock_post_connect.return_value, mock_response]
 
         self.broker.connect()
         self.broker.get_account_info()
@@ -51,7 +56,7 @@ class TestTradierBroker(unittest.TestCase):
 
     @patch('brokers.tradier_broker.requests.get')
     @patch('brokers.tradier_broker.requests.post')
-    def test_get_order_status(self, mock_post_connect, mock_get):
+    def test_get_order_status_success(self, mock_post_connect, mock_get):
         self.mock_connect(mock_post_connect)
         mock_response = MagicMock()
         mock_response.json.return_value = {'status': 'completed'}
@@ -63,7 +68,7 @@ class TestTradierBroker(unittest.TestCase):
 
     @patch('brokers.tradier_broker.requests.delete')
     @patch('brokers.tradier_broker.requests.post')
-    def test_cancel_order(self, mock_post_connect, mock_delete):
+    def test_cancel_order_success(self, mock_post_connect, mock_delete):
         self.mock_connect(mock_post_connect)
         mock_response = MagicMock()
         mock_response.json.return_value = {'status': 'cancelled'}
@@ -75,7 +80,7 @@ class TestTradierBroker(unittest.TestCase):
 
     @patch('brokers.tradier_broker.requests.get')
     @patch('brokers.tradier_broker.requests.post')
-    def test_get_options_chain(self, mock_post_connect, mock_get):
+    def test_get_options_chain_success(self, mock_post_connect, mock_get):
         self.mock_connect(mock_post_connect)
         mock_response = MagicMock()
         mock_response.json.return_value = {'options': 'chain'}
