@@ -8,11 +8,12 @@ MARK_ORDER_STALE_AFTER = 60 * 60 * 24 * 2 # 2 days
 PEGGED_ORDER_CANCEL_AFTER = 15 # 15 seconds
 
 class OrderManager:
-    def __init__(self, engine, brokers):
+    def __init__(self, engine, brokers, execution_style_config):
         logger.info('Initializing OrderManager')
         self.engine = engine
         self.db_manager = DBManager(engine)
         self.brokers = brokers
+        self.execution_style_config = execution_style_config
 
     async def reconcile_orders(self, orders):
         logger.info('Reconciling orders', extra={'orders': orders})
@@ -60,7 +61,7 @@ class OrderManager:
                     await broker.update_positions(order.id, session)
             except Exception as e:
                 logger.error(f'Error reconciling order {order.id}', extra={'error': str(e)})
-        elif order.execution_style == 'pegged':
+        elif order.execution_style in self.execution_style_config:
             cancel_threshold = datetime.utcnow() - timedelta(seconds=PEGGED_ORDER_CANCEL_AFTER)
             if order.timestamp < cancel_threshold:
                 try:
@@ -68,14 +69,8 @@ class OrderManager:
                     await broker.cancel_order(order.broker_id)
                     await self.db_manager.update_trade_status(order.id, 'cancelled')
                     mid_price = await broker.get_mid_price(order.symbol)
-                    await broker.place_order(
-                        symbol=order.symbol,
-                        quantity=order.quantity,
-                        side=order.side,
-                        strategy=order.strategy,
-                        price=round(mid_price, 2),
-                        order_type='limit',
-                        execution_style=order.execution_style
+                    await self.place_order(
+                        order.symbol, order.quantity, order.side, order.strategy_name, round(mid_price, 2), order_type='limit', execution_style=order.execution_style
                     )
                 except Exception as e:
                     logger.error(f'Error cancelling pegged order {order.id}', extra={'error': str(e)})
@@ -85,6 +80,6 @@ class OrderManager:
         orders = await self.db_manager.get_open_trades()
         await self.reconcile_orders(orders)
 
-async def run_order_manager(engine, brokers):
-    order_manager = OrderManager(engine, brokers)
+async def run_order_manager(engine, brokers, execution_style_config):
+    order_manager = OrderManager(engine, brokers, execution_style_config)
     await order_manager.run()
