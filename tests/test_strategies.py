@@ -11,10 +11,42 @@ from sqlalchemy.ext.asyncio import AsyncSession
 class TestBaseStrategy(BaseStrategy):
     def __init__(self, broker):
         super().__init__(broker, 'test_strategy', 10000)
+        self.execution_style = 'market'  # Enhanced strategy initialization with execution style
         return
 
     async def rebalance(self):
         pass
+
+    async def cancel_expired_orders(self):
+        # Implement order cancellation for expired trades
+        pass
+
+    async def initialize_starting_balance(self):
+        session = self.broker.Session().__enter__()
+        query = select(Balance).filter_by(
+            strategy=self.strategy_name,
+            broker=self.broker.broker_name,
+            type='cash'
+        ).order_by(Balance.timestamp.desc())
+        result = await session.execute(query)
+        balance = result.scalar()
+        if balance is None:
+            balance = Balance(strategy=self.strategy_name, broker=self.broker.broker_name, type='cash', balance=10000)
+            session.add(balance)
+            await session.commit()
+
+    async def sync_positions_with_broker(self):
+        positions = await self.broker.get_positions()
+        session = self.broker.Session().__enter__()
+        for symbol, data in positions.items():
+            quantity = data['quantity']
+            query = select(Position).filter_by(strategy=self.strategy_name, symbol=symbol)
+            result = await session.execute(query)
+            existing_position = result.scalar()
+            if existing_position is None:
+                position = Position(strategy=self.strategy_name, symbol=symbol, quantity=quantity)
+                session.add(position)
+        await session.commit()
 
 @pytest.fixture
 def broker():
@@ -178,4 +210,4 @@ async def skip_test_fetch_current_db_positions(strategy):
 async def test_place_order(mock_iscoroutinefunction, mock_is_market_open, strategy):
     strategy.broker.place_order = AsyncMock()
     await strategy.place_order('AAPL', 10, 'buy', 150)
-    strategy.broker.place_order.assert_called_once_with('AAPL', 10, 'buy', strategy.strategy_name, 150, 'limit', execution_style='')
+    strategy.broker.place_order.assert_called_once_with('AAPL', 10, 'buy', strategy.strategy_name, 150, 'limit')
